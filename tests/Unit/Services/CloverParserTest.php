@@ -5,7 +5,7 @@ namespace Tests\Unit\Services;
 use App\Exceptions\FileNotFoundException;
 use App\Exceptions\InvalidCloverFormatException;
 use App\Services\CloverParser;
-use PHPUnit\Framework\TestCase;
+use Tests\TestCase;
 
 class CloverParserTest extends TestCase
 {
@@ -215,6 +215,171 @@ XML;
 
         $this->assertEquals(0.0, $result['overall_percentage']);
         $this->assertEquals(0.0, $result['files'][0]['percentage']);
+    }
+
+    public function test_strips_absolute_path_prefix_automatically(): void
+    {
+        $xml = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<coverage generated="1234567890">
+  <project timestamp="1234567890">
+    <file name="/Users/john/Sites/myproject/src/Foo.php">
+      <line num="1" type="stmt" count="1"/>
+    </file>
+    <file name="/Users/john/Sites/myproject/src/Bar.php">
+      <line num="1" type="stmt" count="1"/>
+    </file>
+    <file name="/Users/john/Sites/myproject/tests/FooTest.php">
+      <line num="1" type="stmt" count="1"/>
+    </file>
+  </project>
+</coverage>
+XML;
+
+        $path = $this->writeTempFile($xml);
+        $result = $this->parser->parse($path);
+
+        $this->assertEquals('src/Foo.php', $result['files'][0]['path']);
+        $this->assertEquals('src/Bar.php', $result['files'][1]['path']);
+        $this->assertEquals('tests/FooTest.php', $result['files'][2]['path']);
+    }
+
+    public function test_handles_relative_paths_without_stripping(): void
+    {
+        $xml = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<coverage generated="1234567890">
+  <project timestamp="1234567890">
+    <file name="src/Foo.php">
+      <line num="1" type="stmt" count="1"/>
+    </file>
+    <file name="tests/FooTest.php">
+      <line num="1" type="stmt" count="1"/>
+    </file>
+  </project>
+</coverage>
+XML;
+
+        $path = $this->writeTempFile($xml);
+        $result = $this->parser->parse($path);
+
+        $this->assertEquals('src/Foo.php', $result['files'][0]['path']);
+        $this->assertEquals('tests/FooTest.php', $result['files'][1]['path']);
+    }
+
+    public function test_strips_ci_cd_paths_correctly(): void
+    {
+        $xml = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<coverage generated="1234567890">
+  <project timestamp="1234567890">
+    <file name="/home/runner/work/my-repo/my-repo/src/Controllers/HomeController.php">
+      <line num="1" type="stmt" count="1"/>
+    </file>
+    <file name="/home/runner/work/my-repo/my-repo/src/Models/User.php">
+      <line num="1" type="stmt" count="1"/>
+    </file>
+    <file name="/home/runner/work/my-repo/my-repo/tests/Feature/ExampleTest.php">
+      <line num="1" type="stmt" count="1"/>
+    </file>
+  </project>
+</coverage>
+XML;
+
+        $path = $this->writeTempFile($xml);
+        $result = $this->parser->parse($path);
+
+        $this->assertEquals('src/Controllers/HomeController.php', $result['files'][0]['path']);
+        $this->assertEquals('src/Models/User.php', $result['files'][1]['path']);
+        $this->assertEquals('tests/Feature/ExampleTest.php', $result['files'][2]['path']);
+    }
+
+    public function test_uses_repository_files_for_accurate_path_matching(): void
+    {
+        $xml = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<coverage generated="1234567890">
+  <project timestamp="1234567890">
+    <file name="/Users/rickgout/Sites/lento-api/src/Invoicing/Domain/Events/InvoiceFinalizedEvent.php">
+      <line num="1" type="stmt" count="1"/>
+    </file>
+    <file name="/Users/rickgout/Sites/lento-api/src/Contracts/Public/RentalContractInterface.php">
+      <line num="1" type="stmt" count="1"/>
+    </file>
+  </project>
+</coverage>
+XML;
+
+        $knownFiles = [
+            'src/Invoicing/Domain/Events/InvoiceFinalizedEvent.php',
+            'src/Contracts/Public/RentalContractInterface.php',
+            'src/Contracts/Public/Data/RentalContractData.php',
+            'tests/Feature/InvoicingTest.php',
+        ];
+
+        $path = $this->writeTempFile($xml);
+        $result = $this->parser->parse($path, $knownFiles);
+
+        $this->assertEquals('src/Invoicing/Domain/Events/InvoiceFinalizedEvent.php', $result['files'][0]['path']);
+        $this->assertEquals('src/Contracts/Public/RentalContractInterface.php', $result['files'][1]['path']);
+    }
+
+    public function test_matching_works_even_when_all_files_in_same_directory(): void
+    {
+        $xml = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<coverage generated="1234567890">
+  <project timestamp="1234567890">
+    <file name="/home/runner/work/my-repo/my-repo/src/Controllers/HomeController.php">
+      <line num="1" type="stmt" count="1"/>
+    </file>
+    <file name="/home/runner/work/my-repo/my-repo/src/Controllers/ApiController.php">
+      <line num="1" type="stmt" count="1"/>
+    </file>
+    <file name="/home/runner/work/my-repo/my-repo/src/Models/User.php">
+      <line num="1" type="stmt" count="1"/>
+    </file>
+  </project>
+</coverage>
+XML;
+
+        $knownFiles = [
+            'src/Controllers/HomeController.php',
+            'src/Controllers/ApiController.php',
+            'src/Models/User.php',
+        ];
+
+        $path = $this->writeTempFile($xml);
+        $result = $this->parser->parse($path, $knownFiles);
+
+        $this->assertEquals('src/Controllers/HomeController.php', $result['files'][0]['path']);
+        $this->assertEquals('src/Controllers/ApiController.php', $result['files'][1]['path']);
+        $this->assertEquals('src/Models/User.php', $result['files'][2]['path']);
+    }
+
+    public function test_falls_back_to_auto_detection_when_no_matches(): void
+    {
+        $xml = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<coverage generated="1234567890">
+  <project timestamp="1234567890">
+    <file name="/Users/john/Sites/myproject/src/Foo.php">
+      <line num="1" type="stmt" count="1"/>
+    </file>
+  </project>
+</coverage>
+XML;
+
+        $knownFiles = [
+            'lib/Bar.php',
+            'tests/BazTest.php',
+        ];
+
+        $path = $this->writeTempFile($xml);
+        $result = $this->parser->parse($path, $knownFiles);
+
+        // Should fall back to auto-detection, find src/ as common root
+        $this->assertEquals('src/Foo.php', $result['files'][0]['path']);
     }
 
     private function writeTempFile(string $content): string

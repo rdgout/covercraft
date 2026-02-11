@@ -1,6 +1,6 @@
 @foreach($tree as $name => $node)
     @if($node['type'] === 'directory')
-        <details class="group" {{ $depth === 0 ? 'open' : '' }}>
+        <details class="group">
             <summary class="flex items-center justify-between px-4 py-2 hover:bg-gray-50 cursor-pointer" style="padding-left: {{ ($depth * 1.5) + 1 }}rem">
                 <div class="flex items-center space-x-2">
                     <svg class="w-4 h-4 text-blue-500 group-open:rotate-90 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>

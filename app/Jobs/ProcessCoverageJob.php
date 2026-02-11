@@ -20,8 +20,14 @@ class ProcessCoverageJob implements ShouldQueue
     {
         $report = CoverageReport::findOrFail($this->coverageReportId);
 
+        // Get known repository files to help with path matching
+        $repositoryFiles = $report->repository->fileCache()
+            ->where('branch', $report->branch)
+            ->first()
+            ?->files ?? [];
+
         $cloverPath = Storage::disk(config('coverage.storage_disk'))->path($report->clover_file_path);
-        $coverageData = $parser->parse($cloverPath);
+        $coverageData = $parser->parse($cloverPath, $repositoryFiles);
 
         DB::transaction(function () use ($report, $coverageData): void {
             CoverageReport::query()

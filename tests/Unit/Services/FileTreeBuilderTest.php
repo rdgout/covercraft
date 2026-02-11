@@ -152,4 +152,134 @@ class FileTreeBuilderTest extends TestCase
         $this->assertEquals(75.0, $tree['src']['children']['Http']['coverage']);
         $this->assertEquals(75.0, $tree['src']['children']['Http']['children']['Controllers']['coverage']);
     }
+
+    public function test_sorts_directories_before_files_alphabetically(): void
+    {
+        $report = CoverageReport::factory()->create();
+
+        $tree = $this->builder->build($report, [
+            'zebra.php',
+            'src/App.php',
+            'apple.php',
+            'tests/Test.php',
+            'banana.php',
+            'config/app.php',
+        ]);
+
+        $keys = array_keys($tree);
+
+        $this->assertEquals(['config', 'src', 'tests', 'apple.php', 'banana.php', 'zebra.php'], $keys);
+        $this->assertEquals('directory', $tree['config']['type']);
+        $this->assertEquals('directory', $tree['src']['type']);
+        $this->assertEquals('directory', $tree['tests']['type']);
+        $this->assertEquals('file', $tree['apple.php']['type']);
+        $this->assertEquals('file', $tree['banana.php']['type']);
+        $this->assertEquals('file', $tree['zebra.php']['type']);
+    }
+
+    public function test_sorts_nested_directories_and_files(): void
+    {
+        $report = CoverageReport::factory()->create();
+
+        $tree = $this->builder->build($report, [
+            'src/z-file.php',
+            'src/Models/User.php',
+            'src/a-file.php',
+            'src/Controllers/HomeController.php',
+            'src/m-file.php',
+        ]);
+
+        $srcKeys = array_keys($tree['src']['children']);
+
+        $this->assertEquals(
+            ['Controllers', 'Models', 'a-file.php', 'm-file.php', 'z-file.php'],
+            $srcKeys
+        );
+    }
+
+    public function test_shows_only_covered_files_when_requested(): void
+    {
+        $report = CoverageReport::factory()->create();
+        CoverageFile::factory()->create([
+            'coverage_report_id' => $report->id,
+            'file_path' => 'src/Covered.php',
+            'coverage_percentage' => 80.00,
+        ]);
+
+        $tree = $this->builder->build($report, [
+            'src/Covered.php',
+            'src/Uncovered.php',
+            'tests/Test.php',
+        ], true);
+
+        // Only covered file should be present
+        $this->assertArrayHasKey('src', $tree);
+        $this->assertArrayHasKey('Covered.php', $tree['src']['children']);
+        $this->assertArrayNotHasKey('Uncovered.php', $tree['src']['children']);
+        $this->assertArrayNotHasKey('tests', $tree);
+    }
+
+    public function test_removes_empty_directories_when_showing_only_covered(): void
+    {
+        $report = CoverageReport::factory()->create();
+        CoverageFile::factory()->create([
+            'coverage_report_id' => $report->id,
+            'file_path' => 'src/App.php',
+            'coverage_percentage' => 90.00,
+        ]);
+
+        $tree = $this->builder->build($report, [
+            'src/App.php',
+            'tests/Unit/FooTest.php',
+            'tests/Feature/BarTest.php',
+            'docs/README.md',
+        ], true);
+
+        // Only src should exist, tests and docs should be removed
+        $this->assertArrayHasKey('src', $tree);
+        $this->assertArrayNotHasKey('tests', $tree);
+        $this->assertArrayNotHasKey('docs', $tree);
+    }
+
+    public function test_shows_all_files_by_default(): void
+    {
+        $report = CoverageReport::factory()->create();
+        CoverageFile::factory()->create([
+            'coverage_report_id' => $report->id,
+            'file_path' => 'src/Covered.php',
+            'coverage_percentage' => 80.00,
+        ]);
+
+        $tree = $this->builder->build($report, [
+            'src/Covered.php',
+            'src/Uncovered.php',
+        ], false);
+
+        // Both files should be present
+        $this->assertArrayHasKey('Covered.php', $tree['src']['children']);
+        $this->assertArrayHasKey('Uncovered.php', $tree['src']['children']);
+        $this->assertTrue($tree['src']['children']['Covered.php']['covered']);
+        $this->assertFalse($tree['src']['children']['Uncovered.php']['covered']);
+    }
+
+    public function test_keeps_directory_with_nested_covered_files(): void
+    {
+        $report = CoverageReport::factory()->create();
+        CoverageFile::factory()->create([
+            'coverage_report_id' => $report->id,
+            'file_path' => 'src/Deep/Nested/File.php',
+            'coverage_percentage' => 75.00,
+        ]);
+
+        $tree = $this->builder->build($report, [
+            'src/Deep/Nested/File.php',
+            'src/Deep/Other/Uncovered.php',
+        ], true);
+
+        // Deep/Nested should exist, Deep/Other should not
+        $this->assertArrayHasKey('src', $tree);
+        $this->assertArrayHasKey('Deep', $tree['src']['children']);
+        $this->assertArrayHasKey('Nested', $tree['src']['children']['Deep']['children']);
+        $this->assertArrayNotHasKey('Other', $tree['src']['children']['Deep']['children']);
+    }
 }

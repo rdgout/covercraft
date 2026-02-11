@@ -283,7 +283,11 @@ protected function casts(): array
 - Return typed arrays with PHPDoc shape annotations
 - Handle edge cases (division by zero, empty files, malformed input)
 - Throw custom exceptions for error conditions
-- Example: `CloverParser::parse()` returns array with keys: `overall_percentage`, `total_lines`, `covered_lines`, `files`
+- **Smart path matching with fallback** - Uses repository file cache to match clover.xml paths accurately, falls back to auto-detection
+  - Primary: Matches absolute clover paths against known repository files (e.g., `/home/runner/work/project/src/File.php` matches `src/File.php`)
+  - Fallback: Detects common project roots (`src/`, `app/`, `lib/`, `tests/`) when no matches found
+  - Works across local dev, CI/CD, different machines without configuration
+- Example: `CloverParser::parse($path, $knownFiles)` returns array with keys: `overall_percentage`, `total_lines`, `covered_lines`, `files`
 
 ### GitHub Integration
 - Use single app-level `config('coverage.github_token')` for all API calls (NOT per-repo tokens)
@@ -296,6 +300,7 @@ protected function casts(): array
 - Merge coverage data with repository file lists
 - Apply exclusion patterns from `config('coverage.exclude_patterns')`
 - Calculate directory coverage recursively (aggregate child file/directory coverage)
+- **Sort directories before files, both alphabetically** - Uses `SORT_NATURAL | SORT_FLAG_CASE` for natural sorting
 - Return hierarchical array structure for view rendering
 
 ## Job Patterns
@@ -472,6 +477,12 @@ Route::get('/dashboard/{repository}/{branch}', ...)->where('branch', '.*');
 - Always compare branches against `$repository->default_branch`
 - Display coverage percentage with color coding (high = green, medium = yellow, low = red)
 - Show file tree with hierarchical directory structure
+
+### File Filtering
+- **Show All Files** (default): Displays entire repository tree with coverage data where available, uncovered files show "N/A"
+- **Show Covered Only** (`?covered_only=1`): Filters to only files present in coverage report, removes empty directories
+- Toggle buttons in UI to switch between modes
+- FileTreeBuilder handles filtering and empty directory removal
 
 ### Line-by-Line Display
 - Decompress line coverage data: `json_decode(gzuncompress($data))`

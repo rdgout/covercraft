@@ -34,7 +34,7 @@ class DashboardController extends Controller
         return view('dashboard.repository', compact('repository', 'branches', 'defaultBranchReport'));
     }
 
-    public function branch(Repository $repository, string $branch): View
+    public function branch(Repository $repository, string $branch, Request $request): View
     {
         $report = CoverageReport::current()
             ->where('repository_id', $repository->id)
@@ -58,9 +58,11 @@ class DashboardController extends Controller
 
         $excludePatterns = config('coverage.exclude_patterns', []);
         $repositoryFiles = $this->fileTreeBuilder->applyExclusionPatterns($repositoryFiles, $excludePatterns);
-        $fileTree = $this->fileTreeBuilder->build($report, $repositoryFiles);
 
-        return view('dashboard.branch', compact('repository', 'report', 'defaultBranchReport', 'fileTree'));
+        $showOnlyCovered = $request->boolean('covered_only', false);
+        $fileTree = $this->fileTreeBuilder->build($report, $repositoryFiles, $showOnlyCovered);
+
+        return view('dashboard.branch', compact('repository', 'report', 'defaultBranchReport', 'fileTree', 'showOnlyCovered'));
     }
 
     public function file(Repository $repository, string $branch, Request $request): View
