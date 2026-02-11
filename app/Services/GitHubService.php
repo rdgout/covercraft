@@ -1,0 +1,146 @@
+<?php
+
+namespace App\Services;
+
+use App\Exceptions\GitHubApiException;
+use App\Models\Repository;
+use App\Models\RepositoryFileCache;
+use Illuminate\Http\Client\RequestException;
+use Illuminate\Support\Facades\Http;
+
+class GitHubService
+{
+    /**
+     * @return list<array{full_name: string, owner: string, name: string, default_branch: string}>
+     */
+    public function listUserRepositories(): array
+    {
+        $token = config('coverage.github_token');
+        $apiUrl = config('coverage.github_api_url');
+
+        $response = Http::withHeaders([
+            'Authorization' => "Bearer {$token}",
+            'Accept' => 'application/vnd.github.v3+json',
+        ])->get("{$apiUrl}/user/repos", [
+            'per_page' => 100,
+            'sort' => 'updated',
+        ]);
+
+        if ($response->failed()) {
+            throw new GitHubApiException('Failed to fetch user repositories: '.$response->body());
+        }
+
+        return collect($response->json())
+            ->map(fn (array $repo) => [
+                'full_name' => $repo['full_name'],
+                'owner' => $repo['owner']['login'],
+                'name' => $repo['name'],
+                'default_branch' => $repo['default_branch'],
+            ])
+            ->toArray();
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function listBranches(string $owner, string $name): array
+    {
+        $token = config('coverage.github_token');
+        $apiUrl = config('coverage.github_api_url');
+
+        $response = Http::withHeaders([
+            'Authorization' => "Bearer {$token}",
+            'Accept' => 'application/vnd.github.v3+json',
+        ])->get("{$apiUrl}/repos/{$owner}/{$name}/branches", [
+            'per_page' => 100,
+        ]);
+
+        if ($response->failed()) {
+            throw new GitHubApiException('Failed to fetch branches: '.$response->body());
+        }
+
+        return collect($response->json())
+            ->pluck('name')
+            ->toArray();
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function fetchRepositoryFiles(Repository $repository, string $commitSha): array
+    {
+        $token = config('coverage.github_token');
+        $apiUrl = config('coverage.github_api_url');
+
+        $response = Http::retry(3, 100, function (\Exception $exception) {
+            return $exception instanceof RequestException
+                && $exception->response?->status() === 429;
+        }, throw: false)->withHeaders([
+            'Authorization' => "Bearer {$token}",
+            'Accept' => 'application/vnd.github.v3+json',
+        ])->get("{$apiUrl}/repos/{$repository->owner}/{$repository->name}/git/trees/{$commitSha}", [
+            'recursive' => 1,
+        ]);
+
+        if ($response->failed()) {
+            throw new GitHubApiException(
+                "Failed to fetch repository files: HTTP {$response->status()}"
+            );
+        }
+
+        return collect($response->json()['tree'] ?? [])
+            ->filter(fn (array $item) => $item['type'] === 'blob')
+            ->pluck('path')
+            ->toArray();
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function getOrFetchRepositoryFiles(Repository $repository, string $branch, string $commitSha): array
+    {
+        $cache = RepositoryFileCache::query()
+            ->where('repository_id', $repository->id)
+            ->where('branch', $branch)
+            ->where('commit_sha', $commitSha)
+            ->first();
+
+        if ($cache) {
+            return $cache->files;
+        }
+
+        $files = $this->fetchRepositoryFiles($repository, $commitSha);
+
+        RepositoryFileCache::updateOrCreate(
+            ['repository_id' => $repository->id, 'branch' => $branch],
+            ['commit_sha' => $commitSha, 'files' => $files, 'cached_at' => now()],
+        );
+
+        return $files;
+    }
+
+    public function verifyWebhookSignature(string $payload, string $signature, string $secret): bool
+    {
+        $expectedSignature = 'sha256='.hash_hmac('sha256', $payload, $secret);
+
+        return hash_equals($expectedSignature, $signature);
+    }
+
+    public function handlePushWebhook(array $payload): void
+    {
+        $repository = Repository::query()
+            ->where('owner', $payload['repository']['owner']['login'])
+            ->where('name', $payload['repository']['name'])
+            ->firstOrFail();
+
+        $branch = str_replace('refs/heads/', '', $payload['ref']);
+        $commitSha = $payload['after'];
+
+        $files = $this->fetchRepositoryFiles($repository, $commitSha);
+
+        RepositoryFileCache::updateOrCreate(
+            ['repository_id' => $repository->id, 'branch' => $branch],
+            ['commit_sha' => $commitSha, 'files' => $files, 'cached_at' => now()],
+        );
+    }
+}
