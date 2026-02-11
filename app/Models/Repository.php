@@ -31,14 +31,6 @@ class Repository extends Model
         'webhook_secret',
     ];
 
-    /**
-     * @return array<string, string>
-     */
-    protected function casts(): array
-    {
-        return [];
-    }
-
     public function coverageReports(): HasMany
     {
         return $this->hasMany(CoverageReport::class);

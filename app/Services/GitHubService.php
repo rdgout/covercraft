@@ -15,16 +15,11 @@ class GitHubService
      */
     public function listUserRepositories(): array
     {
-        $token = config('coverage.github_token');
-        $apiUrl = config('coverage.github_api_url');
-
-        $response = Http::withHeaders([
-            'Authorization' => "Bearer {$token}",
-            'Accept' => 'application/vnd.github.v3+json',
-        ])->get("{$apiUrl}/user/repos", [
-            'per_page' => 100,
-            'sort' => 'updated',
-        ]);
+        $response = $this->githubClient()
+            ->get($this->apiUrl('/user/repos'), [
+                'per_page' => 100,
+                'sort' => 'updated',
+            ]);
 
         if ($response->failed()) {
             throw new GitHubApiException('Failed to fetch user repositories: '.$response->body());
@@ -45,15 +40,10 @@ class GitHubService
      */
     public function listBranches(string $owner, string $name): array
     {
-        $token = config('coverage.github_token');
-        $apiUrl = config('coverage.github_api_url');
-
-        $response = Http::withHeaders([
-            'Authorization' => "Bearer {$token}",
-            'Accept' => 'application/vnd.github.v3+json',
-        ])->get("{$apiUrl}/repos/{$owner}/{$name}/branches", [
-            'per_page' => 100,
-        ]);
+        $response = $this->githubClient()
+            ->get($this->apiUrl("/repos/{$owner}/{$name}/branches"), [
+                'per_page' => 100,
+            ]);
 
         if ($response->failed()) {
             throw new GitHubApiException('Failed to fetch branches: '.$response->body());
@@ -69,18 +59,14 @@ class GitHubService
      */
     public function fetchRepositoryFiles(Repository $repository, string $commitSha): array
     {
-        $token = config('coverage.github_token');
-        $apiUrl = config('coverage.github_api_url');
-
-        $response = Http::retry(3, 100, function (\Exception $exception) {
-            return $exception instanceof RequestException
-                && $exception->response?->status() === 429;
-        }, throw: false)->withHeaders([
-            'Authorization' => "Bearer {$token}",
-            'Accept' => 'application/vnd.github.v3+json',
-        ])->get("{$apiUrl}/repos/{$repository->owner}/{$repository->name}/git/trees/{$commitSha}", [
-            'recursive' => 1,
-        ]);
+        $response = $this->githubClient()
+            ->retry(3, 100, function (\Exception $exception) {
+                return $exception instanceof RequestException
+                    && $exception->response?->status() === 429;
+            }, throw: false)
+            ->get($this->apiUrl("/repos/{$repository->owner}/{$repository->name}/git/trees/{$commitSha}"), [
+                'recursive' => 1,
+            ]);
 
         if ($response->failed()) {
             throw new GitHubApiException(
@@ -142,5 +128,18 @@ class GitHubService
             ['repository_id' => $repository->id, 'branch' => $branch],
             ['commit_sha' => $commitSha, 'files' => $files, 'cached_at' => now()],
         );
+    }
+
+    private function githubClient(): \Illuminate\Http\Client\PendingRequest
+    {
+        return Http::withHeaders([
+            'Authorization' => 'Bearer '.config('coverage.github_token'),
+            'Accept' => 'application/vnd.github.v3+json',
+        ]);
+    }
+
+    private function apiUrl(string $path): string
+    {
+        return config('coverage.github_api_url').$path;
     }
 }

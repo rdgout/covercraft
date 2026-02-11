@@ -37,9 +37,7 @@ class CloverParser
         }
 
         return [
-            'overall_percentage' => $totalLines > 0
-                ? round(($coveredLines / $totalLines) * 100, 2)
-                : 0.0,
+            'overall_percentage' => $this->calculatePercentage($coveredLines, $totalLines),
             'total_lines' => $totalLines,
             'covered_lines' => $coveredLines,
             'files' => $files,
@@ -57,9 +55,7 @@ class CloverParser
         $coveredLines = 0;
 
         foreach ($fileNode->line as $lineNode) {
-            $type = (string) $lineNode['type'];
-
-            if ($type !== 'stmt') {
+            if ((string) $lineNode['type'] !== 'stmt') {
                 continue;
             }
 
@@ -82,10 +78,13 @@ class CloverParser
             'path' => $filePath,
             'total_lines' => $totalLines,
             'covered_lines' => $coveredLines,
-            'percentage' => $totalLines > 0
-                ? round(($coveredLines / $totalLines) * 100, 2)
-                : 0.0,
+            'percentage' => $this->calculatePercentage($coveredLines, $totalLines),
             'lines' => $lines,
         ];
+    }
+
+    private function calculatePercentage(int $covered, int $total): float
+    {
+        return $total > 0 ? round(($covered / $total) * 100, 2) : 0.0;
     }
 }

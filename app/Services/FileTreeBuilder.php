@@ -7,7 +7,7 @@ use App\Models\CoverageReport;
 class FileTreeBuilder
 {
     /**
-     * @param list<string> $repositoryFiles
+     * @param  list<string>  $repositoryFiles
      * @return array<string, mixed>
      */
     public function build(CoverageReport $report, array $repositoryFiles): array
@@ -19,10 +19,11 @@ class FileTreeBuilder
             $coverage = $coveredFiles->get($filePath);
 
             $parts = explode('/', $filePath);
+            $lastIndex = count($parts) - 1;
             $current = &$tree;
 
             foreach ($parts as $index => $part) {
-                if ($index === count($parts) - 1) {
+                if ($index === $lastIndex) {
                     $current[$part] = [
                         'type' => 'file',
                         'path' => $filePath,
@@ -44,8 +45,8 @@ class FileTreeBuilder
     }
 
     /**
-     * @param list<string> $files
-     * @param list<string> $patterns
+     * @param  list<string>  $files
+     * @param  list<string>  $patterns
      * @return list<string>
      */
     public function applyExclusionPatterns(array $files, array $patterns): array
@@ -62,7 +63,7 @@ class FileTreeBuilder
     }
 
     /**
-     * @param array<string, mixed> $tree
+     * @param  array<string, mixed>  $tree
      * @return array<string, mixed>
      */
     public function calculateDirectoryCoverage(array $tree): array
@@ -82,7 +83,7 @@ class FileTreeBuilder
     }
 
     /**
-     * @param array<string, mixed> $children
+     * @param  array<string, mixed>  $children
      * @return array{total_files: int, total_coverage: float}
      */
     private function collectDirectoryStats(array $children): array

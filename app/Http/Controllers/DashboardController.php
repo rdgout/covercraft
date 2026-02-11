@@ -25,9 +25,8 @@ class DashboardController extends Controller
 
     public function repository(Repository $repository): View
     {
-        $branches = CoverageReport::query()
+        $branches = CoverageReport::current()
             ->where('repository_id', $repository->id)
-            ->where('archived', false)
             ->get();
 
         $defaultBranchReport = $branches->firstWhere('branch', $repository->default_branch);
@@ -37,28 +36,26 @@ class DashboardController extends Controller
 
     public function branch(Repository $repository, string $branch): View
     {
-        $report = CoverageReport::query()
+        $report = CoverageReport::current()
             ->where('repository_id', $repository->id)
             ->where('branch', $branch)
-            ->where('archived', false)
             ->with('files')
             ->firstOrFail();
 
         $defaultBranchReport = null;
         if ($branch !== $repository->default_branch) {
-            $defaultBranchReport = CoverageReport::query()
+            $defaultBranchReport = CoverageReport::current()
                 ->where('repository_id', $repository->id)
                 ->where('branch', $repository->default_branch)
-                ->where('archived', false)
                 ->first();
         }
 
-        $cache = RepositoryFileCache::query()
+        $repositoryFiles = RepositoryFileCache::query()
             ->where('repository_id', $repository->id)
             ->where('branch', $branch)
-            ->first();
+            ->first()
+            ?->files ?? [];
 
-        $repositoryFiles = $cache ? $cache->files : [];
         $excludePatterns = config('coverage.exclude_patterns', []);
         $repositoryFiles = $this->fileTreeBuilder->applyExclusionPatterns($repositoryFiles, $excludePatterns);
         $fileTree = $this->fileTreeBuilder->build($report, $repositoryFiles);
@@ -72,10 +69,9 @@ class DashboardController extends Controller
 
         abort_unless($filePath, 400, 'File path is required');
 
-        $report = CoverageReport::query()
+        $report = CoverageReport::current()
             ->where('repository_id', $repository->id)
             ->where('branch', $branch)
-            ->where('archived', false)
             ->firstOrFail();
 
         $file = $report->files()
