@@ -223,4 +223,258 @@ protected function isAccessible(User $user, ?string $path = null): bool
 - To run all tests: `php artisan test --compact`.
 - To run all tests in a file: `php artisan test --compact tests/Feature/ExampleTest.php`.
 - To filter on a particular test name: `php artisan test --compact --filter=testName` (recommended after making a change to a related file).
+
+=== codecov application rules ===
+
+# Codecov Coverage Tracker Application
+
+This is a Codecov-style code coverage tracker built with Laravel 12 and SQLite. It receives clover.xml files from CI/CD pipelines, parses them asynchronously via queues, integrates with GitHub for file lists, and provides a dashboard for visualizing coverage.
+
+**Implementation Plan**: `/Users/rickgout/.claude/plans/ethereal-dazzling-allen.md`
+
+## Core Architecture
+
+### Data Flow
+1. **Upload**: POST `/api/coverage` with clover.xml → Store file → Create pending CoverageReport
+2. **Processing**: Dispatch `ProcessCoverageJob` → Parse XML → Archive old reports → Store CoverageFile records
+3. **Display**: Dashboard reads from database + RepositoryFileCache (not live GitHub calls)
+4. **Webhook**: GitHub push events update RepositoryFileCache
+
+### Key Components
+- **CloverParser**: Parses clover.xml using `simplexml_load_file()`, counts only `stmt` type lines, handles division by zero
+- **GitHubService**: Uses app-level `GITHUB_TOKEN`, fetches repo files, manages RepositoryFileCache, verifies webhook signatures
+- **FileTreeBuilder**: Merges coverage with repo files, applies exclusion patterns, calculates directory coverage recursively
+- **ProcessCoverageJob**: Archives previous reports in DB transaction, creates CoverageFile records with compressed line data
+
+## Database Conventions
+
+### Status Column Pattern
+- Use `string` type for status columns, NOT `enum` (SQLite compatibility)
+- Example: `'status' => 'pending'` | `'completed'` | `'failed'`
+
+### Per-Repository Configuration
+- Each repository has its own `default_branch` column (NOT a global config)
+- Selected during repository creation from GitHub branch list
+- All branch comparisons use `$repository->default_branch`
+
+### Binary Data Storage
+- Use `gzcompress()` for storing large JSON data in binary columns
+- Example: `'line_coverage_data' => gzcompress(json_encode($lineData))`
+- Decompress with accessor: `gzuncompress($this->attributes['line_coverage_data'])`
+
+### Model Casts
+- Use `casts()` method (NOT `$casts` property) - matches Laravel 12 convention
+- Example from CoverageReport model:
+```php
+protected function casts(): array
+{
+    return [
+        'coverage_percentage' => 'decimal:2',
+        'archived' => 'boolean',
+        'archived_at' => 'datetime',
+        'completed_at' => 'datetime',
+    ];
+}
+```
+
+## Service Patterns
+
+### Parser Services
+- Return typed arrays with PHPDoc shape annotations
+- Handle edge cases (division by zero, empty files, malformed input)
+- Throw custom exceptions for error conditions
+- Example: `CloverParser::parse()` returns array with keys: `overall_percentage`, `total_lines`, `covered_lines`, `files`
+
+### GitHub Integration
+- Use single app-level `config('coverage.github_token')` for all API calls (NOT per-repo tokens)
+- Cache file lists in `RepositoryFileCache` table to avoid rate limits
+- Verify webhook signatures with HMAC-SHA256
+- Retry on 429 (rate limit) with exponential backoff
+- Methods: `listUserRepositories()`, `listBranches()`, `fetchRepositoryFiles()`, `getOrFetchRepositoryFiles()`
+
+### File Tree Building
+- Merge coverage data with repository file lists
+- Apply exclusion patterns from `config('coverage.exclude_patterns')`
+- Calculate directory coverage recursively (aggregate child file/directory coverage)
+- Return hierarchical array structure for view rendering
+
+## Job Patterns
+
+### Queue Job Structure
+- Use constructor property promotion: `public function __construct(public int $coverageReportId) {}`
+- Implement `ShouldQueue` interface
+- Use `Queueable` trait
+- Type-hint dependencies in `handle()` method (resolved via DI)
+
+### Transaction Usage
+- Wrap multi-step database operations in `DB::transaction()`
+- Archive previous reports atomically with creating new records
+- Example pattern from ProcessCoverageJob:
+```php
+DB::transaction(function () use ($report, $coverageData): void {
+    // Archive old reports
+    CoverageReport::query()
+        ->where('repository_id', $report->repository_id)
+        ->where('branch', $report->branch)
+        ->where('id', '!=', $report->id)
+        ->where('archived', false)
+        ->update(['archived' => true, 'archived_at' => now()]);
+
+    // Update current report
+    $report->update([...]);
+
+    // Create related records
+    foreach ($coverageData['files'] as $fileData) {
+        $report->files()->create([...]);
+    }
+});
+```
+
+### Failed Job Handling
+- Always implement `failed(Throwable $exception)` method
+- Update status to 'failed' and store error message
+- Handle case where model might not exist (use `find()` not `findOrFail()`)
+
+## Form Request Patterns
+
+### Validation Rules
+- Use array-based validation rules: `['required', 'string', 'max:255']`
+- Always include custom error messages in `messages()` method
+- Return proper PHPDoc types for `rules()` and `messages()`
+
+### Custom Validation Messages
+```php
+public function messages(): array
+{
+    return [
+        'clover_file.required' => 'The clover.xml file is required',
+        'clover_file.file' => 'The clover file must be a valid file upload',
+        'commit_sha.size' => 'The commit SHA must be 40 characters',
+    ];
+}
+```
+
+## Factory Patterns
+
+### Faker Helper
+- Use `fake()` helper (NOT `$this->faker`) - matches existing UserFactory convention
+- Examples: `fake()->userName()`, `fake()->slug(2)`, `fake()->sha256()`
+
+### State Methods
+- Create chainable state methods for common variations
+- Use arrow functions for state: `fn (array $attributes) => [...]`
+- Examples: `withWebhookSecret()`, `withDefaultBranch(string $branch)`, `pending()`, `archived()`
+
+### Auto-Creating Related Models
+- Factories auto-create parent relationships (e.g., CoverageReportFactory creates Repository)
+- This simplifies test setup: `CoverageReport::factory()->create()` gives you a full hierarchy
+
+## Testing Patterns
+
+### Property-Based Testing
+- Create property tests in `tests/Feature/Properties/` directory
+- Run 100 iterations per property test using `for ($i = 0; $i < 100; $i++)`
+- Log seed for reproducibility: `$seed = rand(0, PHP_INT_MAX); srand($seed);`
+- Include seed in assertion messages: `"Seed: {$seed}, iteration: {$i}"`
+- Document property being tested in PHPDoc block
+- Clean up temp files: `unlink($path)` after each iteration
+
+Example property test structure:
+```php
+/**
+ * Property 4: Complete File Path Extraction
+ *
+ * For any valid clover.xml file, the parser should extract all file paths
+ * present in the XML, with no files omitted from the parsed output.
+ */
+public function test_property_4_complete_file_path_extraction(): void
+{
+    $seed = rand(0, PHP_INT_MAX);
+    srand($seed);
+
+    for ($i = 0; $i < 100; $i++) {
+        // Generate random test data
+        // Run test
+        // Assert with seed info
+        $this->assertEquals($expected, $actual, "Seed: {$seed}, iteration: {$i}");
+    }
+}
+```
+
+### Feature Test Organization
+- Group tests by domain: `Models/`, `Api/`, `Jobs/`, `Services/`, `Dashboard/`, `Repositories/`, `Webhooks/`, `Integration/`, `ErrorHandling/`
+- Test relationships and cascade deletes in model tests
+- Use `Http::fake()` for testing external API calls (GitHub)
+- Test both success and failure paths for jobs
+- Create end-to-end integration tests for complete workflows
+
+### Test Database
+- Use `RefreshDatabase` trait in feature tests
+- Use factories for all model creation in tests
+- Check for factory states before manually setting up models
+
+## PHPDoc Patterns
+
+### Array Shape Documentation
+- Document return types with detailed array shapes
+- Use generics for collections: `@param Builder<CoverageReport> $query`
+- Document factory generics: `@use HasFactory<RepositoryFactory>`
+
+Examples:
+```php
+/**
+ * @return array{overall_percentage: float, total_lines: int, covered_lines: int, files: list<array{path: string, total_lines: int, covered_lines: int, percentage: float, lines: array<int, array{covered: bool, count: int}>}>}
+ */
+public function parse(string $filePath): array
+
+/**
+ * @param Builder<CoverageReport> $query
+ * @return Builder<CoverageReport>
+ */
+public function scopeCurrent(Builder $query): Builder
+```
+
+## Routing Patterns
+
+### Branch Names with Slashes
+- Use regex constraint for branch parameters: `->where('branch', '.*')`
+- Order routes carefully: more specific routes (with `/file`) before general ones
+```php
+Route::get('/dashboard/{repository}/{branch}/file', ...)->where('branch', '.*');
+Route::get('/dashboard/{repository}/{branch}', ...)->where('branch', '.*');
+```
+
+### Route Naming
+- Use dot notation: `dashboard.repository`, `dashboard.branch`, `dashboard.file`
+- API routes: `api.coverage.store`, `api.coverage.status`
+
+### Root Route
+- Root `/` redirects to `/dashboard` (not welcome page)
+
+## Configuration Patterns
+
+### Coverage Config
+- `config/coverage.php` contains GitHub token, API URL, exclusion patterns, storage disk
+- Access with `config('coverage.github_token')`, never `env('GITHUB_TOKEN')` outside config
+
+### Storage
+- Use configured disk: `Storage::disk(config('coverage.storage_disk'))`
+- Get absolute path: `Storage::disk(...)->path($relativePath)`
+
+## Dashboard Patterns
+
+### Repository File Lists
+- Read from `RepositoryFileCache` (NOT live GitHub calls) for performance
+- Cache is updated via webhook on push events
+- Cache is also populated during repository creation via `fetchBranches()` AJAX call
+
+### Coverage Comparison
+- Always compare branches against `$repository->default_branch`
+- Display coverage percentage with color coding (high = green, medium = yellow, low = red)
+- Show file tree with hierarchical directory structure
+
+### Line-by-Line Display
+- Decompress line coverage data: `json_decode(gzuncompress($data))`
+- Highlight covered lines (green) vs uncovered lines (red)
+- Display hit count for each line
 </laravel-boost-guidelines>
