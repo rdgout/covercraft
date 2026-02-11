@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\ViewRepositoryRequest;
 use App\Models\CoverageReport;
 use App\Models\Repository;
 use App\Models\RepositoryFileCache;
@@ -13,17 +14,29 @@ class DashboardController extends Controller
 {
     public function __construct(private FileTreeBuilder $fileTreeBuilder) {}
 
-    public function index(): View
+    public function index(Request $request): View
     {
+        $user = auth()->user();
+        $selectedTeamId = $request->query('team');
+
+        if ($selectedTeamId && $user->teams()->where('teams.id', $selectedTeamId)->exists()) {
+            $teamIds = collect([$selectedTeamId]);
+            session(['selected_team' => $selectedTeamId]);
+        } else {
+            $teamIds = $user->getTeamIds();
+            $selectedTeamId = session('selected_team', 'all');
+        }
+
         $repositories = Repository::query()
+            ->forTeams($teamIds)
             ->withCount('coverageReports')
             ->with('latestCoverageReport')
             ->get();
 
-        return view('dashboard.index', compact('repositories'));
+        return view('dashboard.index', compact('repositories', 'selectedTeamId'));
     }
 
-    public function repository(Repository $repository): View
+    public function repository(ViewRepositoryRequest $request, Repository $repository): View
     {
         $branches = CoverageReport::current()
             ->where('repository_id', $repository->id)
@@ -34,7 +47,7 @@ class DashboardController extends Controller
         return view('dashboard.repository', compact('repository', 'branches', 'defaultBranchReport'));
     }
 
-    public function branch(Repository $repository, string $branch, Request $request): View
+    public function branch(ViewRepositoryRequest $request, Repository $repository, string $branch): View
     {
         $report = CoverageReport::current()
             ->where('repository_id', $repository->id)
@@ -65,7 +78,7 @@ class DashboardController extends Controller
         return view('dashboard.branch', compact('repository', 'report', 'defaultBranchReport', 'fileTree', 'showOnlyCovered'));
     }
 
-    public function file(Repository $repository, string $branch, Request $request): View
+    public function file(ViewRepositoryRequest $request, Repository $repository, string $branch): View
     {
         $filePath = $request->query('path');
 

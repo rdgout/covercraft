@@ -8,7 +8,7 @@ class StoreRepositoryRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        return auth()->user()->teams()->exists();
     }
 
     /**
@@ -17,6 +17,7 @@ class StoreRepositoryRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'team_id' => ['required', 'integer', 'exists:teams,id'],
             'owner' => ['required', 'string', 'max:255'],
             'name' => ['required', 'string', 'max:255'],
             'default_branch' => ['required', 'string', 'max:255'],

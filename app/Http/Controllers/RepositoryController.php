@@ -2,7 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\CreateRepositoryRequest;
+use App\Http\Requests\DeleteRepositoryRequest;
 use App\Http\Requests\StoreRepositoryRequest;
+use App\Http\Requests\UpdateRepositoryRequest;
+use App\Http\Requests\ViewRepositoryRequest;
 use App\Models\Repository;
 use App\Services\GitHubService;
 use Illuminate\Http\JsonResponse;
@@ -16,14 +20,18 @@ class RepositoryController extends Controller
 
     public function index(): View
     {
+        $user = auth()->user();
+        $teamIds = $user->getTeamIds();
+
         $repositories = Repository::query()
-            ->with('latestCoverageReport')
+            ->forTeams($teamIds)
+            ->with('latestCoverageReport', 'team')
             ->get();
 
         return view('repositories.index', compact('repositories'));
     }
 
-    public function create(): View
+    public function create(CreateRepositoryRequest $request): View
     {
         $githubRepos = [];
 
@@ -33,7 +41,9 @@ class RepositoryController extends Controller
             // GitHub token may not be configured
         }
 
-        return view('repositories.create', compact('githubRepos'));
+        $teams = auth()->user()->teams;
+
+        return view('repositories.create', compact('githubRepos', 'teams'));
     }
 
     public function fetchBranches(Request $request): JsonResponse
@@ -56,7 +66,14 @@ class RepositoryController extends Controller
     {
         $validated = $request->validated();
 
+        abort_unless(
+            auth()->user()->teams()->where('teams.id', $validated['team_id'])->exists(),
+            403,
+            'You do not belong to the selected team.'
+        );
+
         $repository = Repository::create([
+            'team_id' => $validated['team_id'],
             'owner' => $validated['owner'],
             'name' => $validated['name'],
             'github_url' => "https://github.com/{$validated['owner']}/{$validated['name']}",
@@ -69,16 +86,14 @@ class RepositoryController extends Controller
             ->with('success', "Repository {$repository->owner}/{$repository->name} added.");
     }
 
-    public function edit(Repository $repository): View
+    public function edit(ViewRepositoryRequest $request, Repository $repository): View
     {
         return view('repositories.edit', compact('repository'));
     }
 
-    public function update(Request $request, Repository $repository): RedirectResponse
+    public function update(UpdateRepositoryRequest $request, Repository $repository): RedirectResponse
     {
-        $validated = $request->validate([
-            'default_branch' => ['required', 'string', 'max:255'],
-        ]);
+        $validated = $request->validated();
 
         $repository->update($validated);
 
@@ -87,7 +102,7 @@ class RepositoryController extends Controller
             ->with('success', 'Repository updated.');
     }
 
-    public function destroy(Repository $repository): RedirectResponse
+    public function destroy(DeleteRepositoryRequest $request, Repository $repository): RedirectResponse
     {
         $repository->delete();
 

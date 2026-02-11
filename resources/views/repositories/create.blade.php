@@ -13,6 +13,21 @@
             @csrf
 
             <div class="mb-4">
+                <label for="team_id" class="block text-sm font-medium text-gray-700 mb-1">Team <span class="text-red-600">*</span></label>
+                <select name="team_id" id="team_id" required class="w-full border-gray-300 rounded-lg shadow-sm">
+                    <option value="">Select a team...</option>
+                    @foreach($teams as $team)
+                        <option value="{{ $team->id }}" {{ old('team_id') == $team->id ? 'selected' : '' }}>
+                            {{ $team->name }}
+                        </option>
+                    @endforeach
+                </select>
+                @error('team_id')
+                    <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
+                @enderror
+            </div>
+
+            <div class="mb-4">
                 <label for="github_repo" class="block text-sm font-medium text-gray-700 mb-1">GitHub Repository</label>
                 @if(count($githubRepos) > 0)
                     <select id="github_repo" class="w-full border-gray-300 rounded-lg shadow-sm" onchange="onRepoSelect(this)">

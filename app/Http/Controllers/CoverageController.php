@@ -16,10 +16,23 @@ class CoverageController extends Controller
 
         [$owner, $name] = explode('/', $validated['repository'], 2);
 
-        $repository = Repository::firstOrCreate(
-            ['owner' => $owner, 'name' => $name],
-            ['github_url' => "https://github.com/{$owner}/{$name}"],
-        );
+        $repository = Repository::where('owner', $owner)
+            ->where('name', $name)
+            ->first();
+
+        if (! $repository) {
+            return response()->json([
+                'error' => 'Repository not found',
+            ], 404);
+        }
+
+        $authenticatedTeamId = $request->attributes->get('authenticated_team_id');
+
+        if ($repository->team_id !== $authenticatedTeamId) {
+            return response()->json([
+                'error' => 'Forbidden',
+            ], 403);
+        }
 
         $timestamp = now()->format('YmdHis');
         $sanitizedRepo = str_replace('/', '_', $validated['repository']);
@@ -50,8 +63,16 @@ class CoverageController extends Controller
         ], 202);
     }
 
-    public function status(CoverageReport $report): JsonResponse
+    public function status(CoverageReport $report, \Illuminate\Http\Request $request): JsonResponse
     {
+        $authenticatedTeamId = $request->attributes->get('authenticated_team_id');
+
+        if ($report->repository->team_id !== $authenticatedTeamId) {
+            return response()->json([
+                'error' => 'Forbidden',
+            ], 403);
+        }
+
         $data = [
             'status' => $report->status,
             'report_id' => $report->id,

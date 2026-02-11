@@ -3,10 +3,13 @@
 namespace App\Models;
 
 use Database\Factories\RepositoryFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Collection;
 
 class Repository extends Model
 {
@@ -17,6 +20,7 @@ class Repository extends Model
      * @var list<string>
      */
     protected $fillable = [
+        'team_id',
         'owner',
         'name',
         'github_url',
@@ -46,5 +50,28 @@ class Repository extends Model
     public function fileCache(): HasMany
     {
         return $this->hasMany(RepositoryFileCache::class);
+    }
+
+    public function team(): BelongsTo
+    {
+        return $this->belongsTo(Team::class);
+    }
+
+    /**
+     * @param  Builder<Repository>  $query
+     * @return Builder<Repository>
+     */
+    public function scopeForTeams(Builder $query, Collection|array $teamIds): Builder
+    {
+        return $query->whereIn('team_id', $teamIds);
+    }
+
+    /**
+     * @param  Builder<Repository>  $query
+     * @return Builder<Repository>
+     */
+    public function scopeForTeam(Builder $query, int $teamId): Builder
+    {
+        return $query->where('team_id', $teamId);
     }
 }

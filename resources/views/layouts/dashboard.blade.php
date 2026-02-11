@@ -16,7 +16,19 @@
                     @if(Route::has('repositories.index'))
                         <a href="{{ route('repositories.index') }}" class="text-gray-600 hover:text-gray-900">Repositories</a>
                     @endif
+                    @if(Route::has('tokens.index'))
+                        <a href="{{ route('tokens.index') }}" class="text-gray-600 hover:text-gray-900">API Tokens</a>
+                    @endif
                 </div>
+                @auth
+                <div class="flex items-center space-x-4">
+                    <span class="text-sm text-gray-700">{{ auth()->user()->name }}</span>
+                    <form method="POST" action="{{ route('logout') }}">
+                        @csrf
+                        <button type="submit" class="text-gray-600 hover:text-gray-900">Logout</button>
+                    </form>
+                </div>
+                @endauth
             </div>
         </div>
     </nav>

@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\Repository;
+use App\Models\Team;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -19,6 +20,7 @@ class RepositoryFactory extends Factory
         $name = fake()->slug(2);
 
         return [
+            'team_id' => Team::factory(),
             'owner' => $owner,
             'name' => $name,
             'github_url' => "https://github.com/{$owner}/{$name}",
@@ -38,6 +40,13 @@ class RepositoryFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'default_branch' => $branch,
+        ]);
+    }
+
+    public function forTeam(Team $team): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'team_id' => $team->id,
         ]);
     }
 }

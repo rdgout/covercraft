@@ -4,8 +4,11 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Collection;
 
 class User extends Authenticatable
 {
@@ -44,5 +47,30 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    public function teams(): BelongsToMany
+    {
+        return $this->belongsToMany(Team::class);
+    }
+
+    public function createdTokens(): HasMany
+    {
+        return $this->hasMany(TeamAccessToken::class, 'created_by_user_id');
+    }
+
+    public function hasAccessToRepository(Repository $repository): bool
+    {
+        return $this->teams()->where('teams.id', $repository->team_id)->exists();
+    }
+
+    public function getTeamIds(): Collection
+    {
+        return $this->teams()->pluck('teams.id');
+    }
+
+    public function canManageTeamTokens(Team $team): bool
+    {
+        return $this->teams()->where('teams.id', $team->id)->exists();
     }
 }
