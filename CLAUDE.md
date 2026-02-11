@@ -294,7 +294,9 @@ protected function casts(): array
 - Cache file lists in `RepositoryFileCache` table to avoid rate limits
 - Verify webhook signatures with HMAC-SHA256
 - Retry on 429 (rate limit) with exponential backoff
-- Methods: `listUserRepositories()`, `listBranches()`, `fetchRepositoryFiles()`, `getOrFetchRepositoryFiles()`
+- Methods: `listUserRepositories()`, `listBranches()`, `fetchRepositoryFiles()`, `getOrFetchRepositoryFiles()`, `fetchFileContents()`
+- **File contents:** Fetched via GitHub Contents API, base64-decoded, handles newlines in encoding
+- Contents API: `GET /repos/{owner}/{repo}/contents/{path}?ref={commit_sha}`
 
 ### File Tree Building
 - Merge coverage data with repository file lists

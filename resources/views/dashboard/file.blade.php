@@ -15,45 +15,81 @@
         </div>
     </div>
 
+    @if(isset($error))
+        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+            <p class="text-sm text-yellow-800">{{ $error }}</p>
+        </div>
+    @endif
+
     <div class="bg-white rounded-lg shadow overflow-hidden">
         <div class="overflow-x-auto">
-            <table class="w-full text-sm font-mono">
+            <table class="w-full text-sm font-mono border-collapse">
                 <tbody>
-                    @php
-                        $maxLine = ! empty($lineCoverage) ? max(array_keys($lineCoverage)) : 0;
-                    @endphp
-                    @for($lineNum = 1; $lineNum <= $maxLine; $lineNum++)
-                        @php
-                            $lineData = $lineCoverage[$lineNum] ?? null;
-                            $bgClass = 'bg-white';
-                            if ($lineData !== null) {
-                                $bgClass = $lineData['covered'] ? 'bg-green-50' : 'bg-red-50';
-                            }
-                        @endphp
-                        <tr class="{{ $bgClass }}">
-                            <td class="px-3 py-0.5 text-right text-gray-400 select-none border-r border-gray-200 w-12">{{ $lineNum }}</td>
-                            <td class="px-3 py-0.5 text-center w-12 border-r border-gray-200">
-                                @if($lineData !== null)
-                                    @if($lineData['covered'])
-                                        <span class="text-green-600 text-xs">{{ $lineData['count'] }}x</span>
+                    @if(!empty($sourceLines))
+                        @foreach($sourceLines as $index => $line)
+                            @php
+                                $lineNum = $index + 1;
+                                $lineData = $lineCoverage[$lineNum] ?? null;
+                                $bgClass = $lineData !== null
+                                    ? ($lineData['covered'] ? 'bg-green-50' : 'bg-red-50')
+                                    : 'bg-white';
+                                $lineNumBg = $lineData !== null
+                                    ? ($lineData['covered'] ? 'bg-green-100' : 'bg-red-100')
+                                    : 'bg-gray-100';
+                                $hitBg = $lineData !== null
+                                    ? ($lineData['covered'] ? 'bg-green-200' : 'bg-red-200')
+                                    : 'bg-gray-200';
+                            @endphp
+                            <tr class="{{ $bgClass }}">
+                                <td class="px-3 py-0.5 text-right {{ $lineNumBg }} text-gray-600 select-none border-r border-gray-300 w-16">
+                                    {{ $lineNum }}
+                                </td>
+                                <td class="px-2 py-0.5 text-center {{ $hitBg }} text-gray-700 select-none border-r border-gray-300 w-12">
+                                    @if($lineData !== null)
+                                        @if($lineData['covered'])
+                                            <span class="text-xs">{{ $lineData['count'] }}</span>
+                                        @else
+                                            <span class="text-xs">0</span>
+                                        @endif
                                     @else
-                                        <span class="text-red-500 text-xs">0x</span>
+                                        &nbsp;
                                     @endif
-                                @endif
-                            </td>
-                            <td class="px-3 py-0.5 whitespace-pre">
-                                @if($lineData !== null)
-                                    <span class="{{ $lineData['covered'] ? 'text-gray-800' : 'text-red-700' }}">Line {{ $lineNum }}</span>
-                                @else
-                                    <span class="text-gray-500">Line {{ $lineNum }}</span>
-                                @endif
-                            </td>
-                        </tr>
-                    @endfor
+                                </td>
+                                <td class="px-4 py-0.5 whitespace-pre text-gray-900">{{ $line ?: ' ' }}</td>
+                            </tr>
+                        @endforeach
+                    @else
+                        @php
+                            $maxLine = !empty($lineCoverage) ? max(array_keys($lineCoverage)) : 0;
+                        @endphp
+                        @for($lineNum = 1; $lineNum <= $maxLine; $lineNum++)
+                            @php
+                                $lineData = $lineCoverage[$lineNum] ?? null;
+                                $bgClass = $lineData !== null
+                                    ? ($lineData['covered'] ? 'bg-green-50' : 'bg-red-50')
+                                    : 'bg-white';
+                            @endphp
+                            <tr class="{{ $bgClass }}">
+                                <td class="px-3 py-0.5 text-right text-gray-400 select-none border-r border-gray-200 w-12">{{ $lineNum }}</td>
+                                <td class="px-3 py-0.5 text-center w-12 border-r border-gray-200">
+                                    @if($lineData !== null)
+                                        @if($lineData['covered'])
+                                            <span class="text-green-600 text-xs">{{ $lineData['count'] }}x</span>
+                                        @else
+                                            <span class="text-red-500 text-xs">0x</span>
+                                        @endif
+                                    @endif
+                                </td>
+                                <td class="px-3 py-0.5 whitespace-pre text-gray-500 italic">
+                                    (Source code unavailable - showing coverage data only)
+                                </td>
+                            </tr>
+                        @endfor
+                    @endif
 
-                    @if($maxLine === 0)
+                    @if(empty($sourceLines) && $maxLine === 0)
                         <tr>
-                            <td colspan="3" class="px-6 py-4 text-center text-gray-500">No line coverage data available.</td>
+                            <td colspan="3" class="px-6 py-4 text-center text-gray-500">No coverage data available.</td>
                         </tr>
                     @endif
                 </tbody>

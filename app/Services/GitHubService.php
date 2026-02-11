@@ -130,6 +130,36 @@ class GitHubService
         );
     }
 
+    /**
+     * Fetch the contents of a file from GitHub.
+     */
+    public function fetchFileContents(Repository $repository, string $commitSha, string $filePath): string
+    {
+        $response = $this->githubClient()
+            ->retry(3, 100, function (\Exception $exception) {
+                return $exception instanceof RequestException
+                    && $exception->response?->status() === 429;
+            }, throw: false)
+            ->get($this->apiUrl("/repos/{$repository->owner}/{$repository->name}/contents/{$filePath}"), [
+                'ref' => $commitSha,
+            ]);
+
+        if ($response->failed()) {
+            throw new GitHubApiException(
+                "Failed to fetch file contents: HTTP {$response->status()}"
+            );
+        }
+
+        $data = $response->json();
+
+        // GitHub returns base64-encoded content
+        if (isset($data['content'])) {
+            return base64_decode(str_replace("\n", '', $data['content']));
+        }
+
+        throw new GitHubApiException('File content not found in response');
+    }
+
     private function githubClient(): \Illuminate\Http\Client\PendingRequest
     {
         return Http::withHeaders([

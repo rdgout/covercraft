@@ -236,4 +236,77 @@ class GitHubServiceTest extends TestCase
 
         $this->service->listBranches('acme', 'nonexistent');
     }
+
+    public function test_fetch_file_contents(): void
+    {
+        $repository = Repository::factory()->create([
+            'owner' => 'acme',
+            'name' => 'app',
+        ]);
+
+        $fileContent = "<?php\n\nnamespace App;\n\nclass Foo\n{\n    //\n}\n";
+        $encodedContent = base64_encode($fileContent);
+
+        Http::fake([
+            '*/repos/acme/app/contents/src/Foo.php*' => Http::response([
+                'content' => $encodedContent,
+                'encoding' => 'base64',
+            ]),
+        ]);
+
+        $contents = $this->service->fetchFileContents($repository, 'abc123', 'src/Foo.php');
+
+        $this->assertEquals($fileContent, $contents);
+        Http::assertSent(fn ($request) => str_contains($request->url(), 'ref=abc123'));
+    }
+
+    public function test_fetch_file_contents_handles_newlines_in_base64(): void
+    {
+        $repository = Repository::factory()->create();
+
+        $fileContent = str_repeat('x', 100);
+        // GitHub adds newlines every 60 chars in base64
+        $encodedContent = chunk_split(base64_encode($fileContent), 60, "\n");
+
+        Http::fake([
+            '*/contents/*' => Http::response([
+                'content' => $encodedContent,
+                'encoding' => 'base64',
+            ]),
+        ]);
+
+        $contents = $this->service->fetchFileContents($repository, 'abc123', 'file.txt');
+
+        $this->assertEquals($fileContent, $contents);
+    }
+
+    public function test_fetch_file_contents_throws_on_missing_content(): void
+    {
+        $repository = Repository::factory()->create();
+
+        Http::fake([
+            '*/contents/*' => Http::response([
+                'message' => 'Not Found',
+            ]),
+        ]);
+
+        $this->expectException(GitHubApiException::class);
+        $this->expectExceptionMessage('File content not found in response');
+
+        $this->service->fetchFileContents($repository, 'abc123', 'missing.php');
+    }
+
+    public function test_fetch_file_contents_throws_on_api_error(): void
+    {
+        $repository = Repository::factory()->create();
+
+        Http::fake([
+            '*/contents/*' => Http::response([], 404),
+        ]);
+
+        $this->expectException(GitHubApiException::class);
+        $this->expectExceptionMessage('Failed to fetch file contents: HTTP 404');
+
+        $this->service->fetchFileContents($repository, 'abc123', 'missing.php');
+    }
 }

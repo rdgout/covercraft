@@ -82,6 +82,18 @@ class DashboardController extends Controller
 
         $lineCoverage = $file->line_coverage;
 
-        return view('dashboard.file', compact('repository', 'report', 'file', 'lineCoverage', 'branch'));
+        // Fetch file contents from GitHub
+        $githubService = app(\App\Services\GitHubService::class);
+        $sourceLines = [];
+        $error = null;
+
+        try {
+            $fileContents = $githubService->fetchFileContents($repository, $report->commit_sha, $filePath);
+            $sourceLines = explode("\n", $fileContents);
+        } catch (\Exception $e) {
+            $error = 'Failed to fetch file contents from GitHub: '.$e->getMessage();
+        }
+
+        return view('dashboard.file', compact('repository', 'report', 'file', 'lineCoverage', 'branch', 'sourceLines', 'error'));
     }
 }
