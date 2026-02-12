@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Team;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreTeamAccessTokenRequest extends FormRequest
@@ -11,9 +12,9 @@ class StoreTeamAccessTokenRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        $teamId = $this->input('team_id');
+        $team = Team::find($this->input('team_id'));
 
-        return auth()->user()->teams()->where('teams.id', $teamId)->exists();
+        return $team && auth()->user()->belongsToTeam($team);
     }
 
     /**

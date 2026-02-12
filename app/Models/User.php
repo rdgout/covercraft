@@ -61,7 +61,7 @@ class User extends Authenticatable
 
     public function hasAccessToRepository(Repository $repository): bool
     {
-        return $this->teams()->where('teams.id', $repository->team_id)->exists();
+        return $this->belongsToTeam($repository->team);
     }
 
     public function getTeamIds(): Collection
@@ -69,7 +69,7 @@ class User extends Authenticatable
         return $this->teams()->pluck('teams.id');
     }
 
-    public function canManageTeamTokens(Team $team): bool
+    public function belongsToTeam(Team $team): bool
     {
         return $this->teams()->where('teams.id', $team->id)->exists();
     }

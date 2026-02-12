@@ -15,18 +15,14 @@ class TeamAccessTokenController extends Controller
         $user = auth()->user();
         $selectedTeamId = $request->query('team');
 
-        if ($selectedTeamId && $user->teams()->where('teams.id', $selectedTeamId)->exists()) {
-            $tokens = TeamAccessToken::where('team_id', $selectedTeamId)
-                ->with(['team', 'createdBy'])
-                ->latest()
-                ->get();
-        } else {
-            $teamIds = $user->getTeamIds();
-            $tokens = TeamAccessToken::whereIn('team_id', $teamIds)
-                ->with(['team', 'createdBy'])
-                ->latest()
-                ->get();
-        }
+        $teamIds = ($selectedTeamId && $user->teams()->where('teams.id', $selectedTeamId)->exists())
+            ? collect([$selectedTeamId])
+            : $user->getTeamIds();
+
+        $tokens = TeamAccessToken::whereIn('team_id', $teamIds)
+            ->with(['team', 'createdBy'])
+            ->latest()
+            ->get();
 
         return view('tokens.index', [
             'tokens' => $tokens,
@@ -56,11 +52,11 @@ class TeamAccessTokenController extends Controller
 
     public function destroy(TeamAccessToken $token): RedirectResponse
     {
-        $user = auth()->user();
-
-        if (! $user->canManageTeamTokens($token->team)) {
-            abort(403, 'You do not have permission to manage this team\'s tokens.');
-        }
+        abort_unless(
+            auth()->user()->belongsToTeam($token->team),
+            403,
+            'You do not have permission to manage this team\'s tokens.'
+        );
 
         $teamId = $token->team_id;
         $token->delete();

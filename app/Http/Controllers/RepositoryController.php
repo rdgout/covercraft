@@ -66,12 +66,6 @@ class RepositoryController extends Controller
     {
         $validated = $request->validated();
 
-        abort_unless(
-            auth()->user()->teams()->where('teams.id', $validated['team_id'])->exists(),
-            403,
-            'You do not belong to the selected team.'
-        );
-
         $repository = Repository::create([
             'team_id' => $validated['team_id'],
             'owner' => $validated['owner'],
