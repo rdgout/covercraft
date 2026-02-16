@@ -197,7 +197,7 @@ class StoragePropertyTest extends TestCase
             $repository = Repository::factory()->create();
             $branch = 'branch-'.$i;
 
-            $xml = "<?xml version=\"1.0\"?><coverage><project><file name=\"src/F.php\"><line num=\"1\" type=\"stmt\" count=\"1\"/></file></project></coverage>";
+            $xml = '<?xml version="1.0"?><coverage><project><file name="src/F.php"><line num="1" type="stmt" count="1"/></file></project></coverage>';
 
             $filename1 = "coverage/prop12_{$i}_1.xml";
             Storage::disk('local')->put($filename1, $xml);

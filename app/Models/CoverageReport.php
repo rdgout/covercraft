@@ -54,7 +54,7 @@ class CoverageReport extends Model
     }
 
     /**
-     * @param Builder<CoverageReport> $query
+     * @param  Builder<CoverageReport>  $query
      * @return Builder<CoverageReport>
      */
     public function scopeCurrent(Builder $query): Builder
