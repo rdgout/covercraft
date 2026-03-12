@@ -1,0 +1,8 @@
+services:
+  postgres:
+    ports:
+      - "${DB_PORT_FORWARD:-5432}:5432"
+
+  redis:
+    ports:
+      - "6380:6379"

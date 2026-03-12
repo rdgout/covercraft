@@ -1,0 +1,54 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Documentation
+README.md
+CLAUDE.md
+AGENTS.md
+*.md
+
+# IDE
+.idea
+.vscode
+.kiro
+*.swp
+*.swo
+
+# Node
+node_modules
+npm-debug.log
+
+# Build artifacts
+public/build
+public/hot
+public/storage
+
+# Environment
+.env
+.env.*
+.env.docker
+
+# Testing
+tests
+.phpunit.result.cache
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+storage/logs/*
+
+# Cache
+bootstrap/cache/*
+!bootstrap/cache/.gitignore
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+
+# Docker
+docker-compose*.yml
+.dockerignore
