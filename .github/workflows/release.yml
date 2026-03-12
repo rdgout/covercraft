@@ -6,8 +6,66 @@ on:
       - main
 
 jobs:
-  tag:
-    name: Bump Version
+  tests:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, '[skip]')"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer:v2
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: |
+          composer install --no-interaction --prefer-dist --optimize-autoloader
+          npm ci
+
+      - name: Build Assets
+        run: npm run build
+
+      - name: Copy Environment File
+        run: cp .env.example .env
+
+      - name: Generate Application Key
+        run: php artisan key:generate
+
+      - name: Run Tests
+        run: php artisan test --compact
+
+  lint:
+    name: Run Linter
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, '[skip]')"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+
+      - name: Install Dependencies
+        run: composer install -q --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist
+
+      - name: Run Pint
+        run: vendor/bin/pint --test
+
+  compute:
+    name: Compute Next Version
+    needs: [tests, lint]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -25,12 +83,12 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Bump version and push tag
+      - name: Compute next version (dry run)
         id: tag_version
         uses: mathieudutour/github-tag-action@v6.2
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          create_annotated_tag: true
+          dry_run: true
           release_branches: main
 
       - name: Parse semver from tag
@@ -46,7 +104,7 @@ jobs:
 
   build:
     name: Build Docker Image (${{ matrix.platform }})
-    needs: [tag]
+    needs: [compute]
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
@@ -64,8 +122,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.tag.outputs.new_tag }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -84,17 +140,45 @@ jobs:
           file: ./Dockerfile
           target: app
           push: true
-          tags: ghcr.io/${{ github.repository }}:${{ needs.tag.outputs.new_tag }}-${{ matrix.suffix }}
+          tags: ghcr.io/${{ github.repository }}:${{ needs.compute.outputs.new_tag }}-${{ matrix.suffix }}
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-            org.opencontainers.image.version=${{ needs.tag.outputs.version }}
+            org.opencontainers.image.version=${{ needs.compute.outputs.version }}
           cache-from: type=gha,scope=${{ matrix.suffix }}
           cache-to: type=gha,scope=${{ matrix.suffix }},mode=max
           platforms: ${{ matrix.platform }}
 
+  tag:
+    name: Push Tag
+    needs: [compute, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      new_tag: ${{ needs.compute.outputs.new_tag }}
+      changelog: ${{ needs.compute.outputs.changelog }}
+      version: ${{ needs.compute.outputs.version }}
+      major: ${{ needs.compute.outputs.major }}
+      minor: ${{ needs.compute.outputs.minor }}
+      major_minor: ${{ needs.compute.outputs.major_minor }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Push tag
+        uses: mathieudutour/github-tag-action@v6.2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          custom_tag: ${{ needs.compute.outputs.version }}
+          create_annotated_tag: true
+          release_branches: main
+
   manifest:
     name: Create Multi-Arch Manifest
-    needs: [tag, build]
+    needs: [tag]
     runs-on: ubuntu-latest
     permissions:
       packages: write
