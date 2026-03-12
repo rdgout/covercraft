@@ -4,6 +4,8 @@ services:
       context: .
       target: app
     image: covercraft:latest
+    volumes:
+      - ./public/build:/app/public/build
 
   horizon:
     image: covercraft:latest
