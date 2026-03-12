@@ -1,4 +1,16 @@
 services:
+  app:
+    build:
+      context: .
+      target: app
+    image: covercraft:latest
+
+  horizon:
+    image: covercraft:latest
+
+  scheduler:
+    image: covercraft:latest
+
   postgres:
     ports:
       - "${DB_PORT_FORWARD:-5432}:5432"

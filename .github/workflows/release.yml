@@ -1,0 +1,141 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  tag:
+    name: Bump Version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      new_tag: ${{ steps.tag_version.outputs.new_tag }}
+      changelog: ${{ steps.tag_version.outputs.changelog }}
+      version: ${{ steps.semver.outputs.version }}
+      major: ${{ steps.semver.outputs.major }}
+      minor: ${{ steps.semver.outputs.minor }}
+      major_minor: ${{ steps.semver.outputs.major_minor }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Bump version and push tag
+        id: tag_version
+        uses: mathieudutour/github-tag-action@v6.2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          create_annotated_tag: true
+          release_branches: main
+
+      - name: Parse semver from tag
+        id: semver
+        run: |
+          TAG="${{ steps.tag_version.outputs.new_tag }}"
+          VERSION="${TAG#v}"
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "major=$MAJOR" >> $GITHUB_OUTPUT
+          echo "minor=$MINOR" >> $GITHUB_OUTPUT
+          echo "major_minor=$MAJOR.$MINOR" >> $GITHUB_OUTPUT
+
+  build:
+    name: Build Docker Image (${{ matrix.platform }})
+    needs: [tag]
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+            suffix: amd64
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+            suffix: arm64
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.tag.outputs.new_tag }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          target: app
+          push: true
+          tags: ghcr.io/${{ github.repository }}:${{ needs.tag.outputs.new_tag }}-${{ matrix.suffix }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.version=${{ needs.tag.outputs.version }}
+          cache-from: type=gha,scope=${{ matrix.suffix }}
+          cache-to: type=gha,scope=${{ matrix.suffix }},mode=max
+          platforms: ${{ matrix.platform }}
+
+  manifest:
+    name: Create Multi-Arch Manifest
+    needs: [tag, build]
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+
+    steps:
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create and push multi-arch manifests
+        env:
+          IMAGE: ghcr.io/${{ github.repository }}
+          TAG: ${{ needs.tag.outputs.new_tag }}
+          MAJOR_MINOR: v${{ needs.tag.outputs.major_minor }}
+          MAJOR: v${{ needs.tag.outputs.major }}
+        run: |
+          for MANIFEST_TAG in "$TAG" "latest" "$MAJOR_MINOR" "$MAJOR"; do
+            docker buildx imagetools create \
+              --tag "$IMAGE:$MANIFEST_TAG" \
+              "$IMAGE:$TAG-amd64" \
+              "$IMAGE:$TAG-arm64"
+          done
+
+  release:
+    name: Create GitHub Release
+    needs: [tag, manifest]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Create GitHub Release
+        uses: ncipollo/release-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag: ${{ needs.tag.outputs.new_tag }}
+          name: ${{ needs.tag.outputs.new_tag }}
+          body: ${{ needs.tag.outputs.changelog }}
+          draft: false
+          prerelease: false
