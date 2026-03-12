@@ -5,6 +5,7 @@ namespace Tests\Feature\Models;
 use App\Models\CoverageReport;
 use App\Models\Repository;
 use App\Models\RepositoryFileCache;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -116,7 +117,7 @@ class RepositoryTest extends TestCase
     {
         Repository::factory()->create(['owner' => 'acme', 'name' => 'app']);
 
-        $this->expectException(\Illuminate\Database\UniqueConstraintViolationException::class);
+        $this->expectException(UniqueConstraintViolationException::class);
 
         Repository::factory()->create(['owner' => 'acme', 'name' => 'app']);
     }

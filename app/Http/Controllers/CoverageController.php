@@ -7,6 +7,7 @@ use App\Jobs\ProcessCoverageJob;
 use App\Models\CoverageReport;
 use App\Models\Repository;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class CoverageController extends Controller
 {
@@ -63,7 +64,7 @@ class CoverageController extends Controller
         ], 202);
     }
 
-    public function status(CoverageReport $report, \Illuminate\Http\Request $request): JsonResponse
+    public function status(CoverageReport $report, Request $request): JsonResponse
     {
         $authenticatedTeamId = $request->attributes->get('authenticated_team_id');
 

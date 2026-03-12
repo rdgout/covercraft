@@ -7,6 +7,7 @@ use App\Models\CoverageReport;
 use App\Models\Repository;
 use App\Models\RepositoryFileCache;
 use App\Services\FileTreeBuilder;
+use App\Services\GitHubService;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -96,7 +97,7 @@ class DashboardController extends Controller
         $lineCoverage = $file->line_coverage;
 
         // Fetch file contents from GitHub
-        $githubService = app(\App\Services\GitHubService::class);
+        $githubService = app(GitHubService::class);
         $sourceLines = [];
         $error = null;
 

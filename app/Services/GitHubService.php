@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Exceptions\GitHubApiException;
 use App\Models\Repository;
 use App\Models\RepositoryFileCache;
+use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
 
@@ -160,7 +161,7 @@ class GitHubService
         throw new GitHubApiException('File content not found in response');
     }
 
-    private function githubClient(): \Illuminate\Http\Client\PendingRequest
+    private function githubClient(): PendingRequest
     {
         return Http::withHeaders([
             'Authorization' => 'Bearer '.config('coverage.github_token'),

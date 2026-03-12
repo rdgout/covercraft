@@ -6,6 +6,7 @@ use App\Models\CoverageFile;
 use App\Models\CoverageReport;
 use App\Models\Repository;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 class CoverageReportTest extends TestCase
@@ -102,7 +103,7 @@ class CoverageReportTest extends TestCase
         $report->refresh();
 
         $this->assertIsBool($report->archived);
-        $this->assertInstanceOf(\Illuminate\Support\Carbon::class, $report->archived_at);
-        $this->assertInstanceOf(\Illuminate\Support\Carbon::class, $report->completed_at);
+        $this->assertInstanceOf(Carbon::class, $report->archived_at);
+        $this->assertInstanceOf(Carbon::class, $report->completed_at);
     }
 }
