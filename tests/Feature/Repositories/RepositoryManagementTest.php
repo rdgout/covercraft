@@ -3,6 +3,8 @@
 namespace Tests\Feature\Repositories;
 
 use App\Models\Repository;
+use App\Models\Team;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
@@ -10,6 +12,18 @@ use Tests\TestCase;
 class RepositoryManagementTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected User $user;
+
+    protected Team $team;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->user = User::factory()->withTeams(1)->create();
+        $this->team = $this->user->teams->first();
+        $this->actingAs($this->user);
+    }
 
     public function test_index_page_renders(): void
     {
@@ -21,7 +35,7 @@ class RepositoryManagementTest extends TestCase
 
     public function test_index_shows_repositories(): void
     {
-        Repository::factory()->create(['owner' => 'acme', 'name' => 'app']);
+        Repository::factory()->forTeam($this->team)->create(['owner' => 'acme', 'name' => 'app']);
 
         $response = $this->get('/repositories');
 
@@ -63,6 +77,7 @@ class RepositoryManagementTest extends TestCase
     public function test_store_creates_repository(): void
     {
         $response = $this->post('/repositories', [
+            'team_id' => $this->team->id,
             'owner' => 'acme',
             'name' => 'app',
             'default_branch' => 'main',
@@ -79,6 +94,7 @@ class RepositoryManagementTest extends TestCase
     public function test_store_generates_webhook_secret(): void
     {
         $this->post('/repositories', [
+            'team_id' => $this->team->id,
             'owner' => 'acme',
             'name' => 'app',
             'default_branch' => 'main',
@@ -92,6 +108,7 @@ class RepositoryManagementTest extends TestCase
     public function test_store_stores_correct_default_branch(): void
     {
         $this->post('/repositories', [
+            'team_id' => $this->team->id,
             'owner' => 'acme',
             'name' => 'app',
             'default_branch' => 'develop',
@@ -113,7 +130,7 @@ class RepositoryManagementTest extends TestCase
 
     public function test_edit_page_renders(): void
     {
-        $repo = Repository::factory()->create();
+        $repo = Repository::factory()->forTeam($this->team)->create();
 
         $response = $this->get("/repositories/{$repo->id}/edit");
 
@@ -123,7 +140,7 @@ class RepositoryManagementTest extends TestCase
 
     public function test_update_changes_default_branch(): void
     {
-        $repo = Repository::factory()->create(['default_branch' => 'main']);
+        $repo = Repository::factory()->forTeam($this->team)->create(['default_branch' => 'main']);
 
         $response = $this->put("/repositories/{$repo->id}", [
             'default_branch' => 'develop',
@@ -135,7 +152,7 @@ class RepositoryManagementTest extends TestCase
 
     public function test_destroy_deletes_repository(): void
     {
-        $repo = Repository::factory()->create();
+        $repo = Repository::factory()->forTeam($this->team)->create();
 
         $response = $this->delete("/repositories/{$repo->id}");
 

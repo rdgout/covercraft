@@ -6,7 +6,12 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RepositoryController;
 use App\Http\Controllers\TeamAccessTokenController;
 use App\Http\Controllers\WebhookController;
+use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
+use Illuminate\Cookie\Middleware\EncryptCookies;
+use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
+use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\Facades\Route;
+use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 Route::redirect('/', '/dashboard');
 
@@ -14,11 +19,11 @@ Route::get('/badge/{owner}/{name}/{branch}', [BadgeController::class, 'show'])
     ->name('badge.show')
     ->where('branch', '.*')
     ->withoutMiddleware([
-        \Illuminate\Cookie\Middleware\EncryptCookies::class,
-        \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
-        \Illuminate\Session\Middleware\StartSession::class,
-        \Illuminate\View\Middleware\ShareErrorsFromSession::class,
-        \Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class,
+        EncryptCookies::class,
+        AddQueuedCookiesToResponse::class,
+        StartSession::class,
+        ShareErrorsFromSession::class,
+        ValidateCsrfToken::class,
     ])
     ->middleware('cache.headers:public;max_age=300;etag');
 
@@ -41,5 +46,6 @@ Route::middleware('auth')->group(function () {
 });
 
 Route::post('/webhooks/github', [WebhookController::class, 'github'])->name('webhooks.github');
+Route::post('/webhooks/github-app', [WebhookController::class, 'githubApp'])->name('webhooks.github-app');
 
 require __DIR__.'/auth.php';

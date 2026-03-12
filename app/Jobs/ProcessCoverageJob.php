@@ -53,6 +53,8 @@ class ProcessCoverageJob implements ShouldQueue
                 ]);
             }
         });
+
+        PostPullRequestCommentJob::dispatch($report->id);
     }
 
     public function failed(Throwable $exception): void

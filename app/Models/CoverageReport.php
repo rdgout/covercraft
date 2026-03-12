@@ -21,6 +21,7 @@ class CoverageReport extends Model
         'repository_id',
         'branch',
         'commit_sha',
+        'pr_number',
         'coverage_percentage',
         'status',
         'error_message',
@@ -36,6 +37,7 @@ class CoverageReport extends Model
     protected function casts(): array
     {
         return [
+            'pr_number' => 'integer',
             'coverage_percentage' => 'decimal:2',
             'archived' => 'boolean',
             'archived_at' => 'datetime',

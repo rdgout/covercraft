@@ -5,26 +5,47 @@ namespace Tests\Feature\Api;
 use App\Jobs\ProcessCoverageJob;
 use App\Models\CoverageReport;
 use App\Models\Repository;
+use App\Models\Team;
+use App\Models\TeamAccessToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class CoverageApiTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected Team $team;
+
+    protected string $apiToken;
+
+    protected Repository $repository;
+
     protected function setUp(): void
     {
         parent::setUp();
         Storage::fake('local');
         Queue::fake();
+
+        $this->team = Team::factory()->create();
+        $plainToken = Str::random(64);
+        TeamAccessToken::factory()->forTeam($this->team)->create([
+            'token' => hash('sha256', $plainToken),
+        ]);
+        $this->apiToken = $plainToken;
+
+        $this->repository = Repository::factory()->forTeam($this->team)->create([
+            'owner' => 'acme',
+            'name' => 'app',
+        ]);
     }
 
     public function test_valid_submission_returns_202(): void
     {
-        $response = $this->postJson('/api/coverage', [
+        $response = $this->withToken($this->apiToken)->postJson('/api/coverage', [
             'repository' => 'acme/app',
             'branch' => 'main',
             'commit_sha' => str_repeat('a', 40),
@@ -38,7 +59,7 @@ class CoverageApiTest extends TestCase
 
     public function test_missing_repository_returns_422(): void
     {
-        $response = $this->postJson('/api/coverage', [
+        $response = $this->withToken($this->apiToken)->postJson('/api/coverage', [
             'branch' => 'main',
             'commit_sha' => str_repeat('a', 40),
             'clover_file' => UploadedFile::fake()->create('clover.xml', 100),
@@ -50,7 +71,7 @@ class CoverageApiTest extends TestCase
 
     public function test_missing_branch_returns_422(): void
     {
-        $response = $this->postJson('/api/coverage', [
+        $response = $this->withToken($this->apiToken)->postJson('/api/coverage', [
             'repository' => 'acme/app',
             'commit_sha' => str_repeat('a', 40),
             'clover_file' => UploadedFile::fake()->create('clover.xml', 100),
@@ -62,7 +83,7 @@ class CoverageApiTest extends TestCase
 
     public function test_missing_commit_sha_returns_422(): void
     {
-        $response = $this->postJson('/api/coverage', [
+        $response = $this->withToken($this->apiToken)->postJson('/api/coverage', [
             'repository' => 'acme/app',
             'branch' => 'main',
             'clover_file' => UploadedFile::fake()->create('clover.xml', 100),
@@ -74,7 +95,7 @@ class CoverageApiTest extends TestCase
 
     public function test_invalid_commit_sha_length_returns_422(): void
     {
-        $response = $this->postJson('/api/coverage', [
+        $response = $this->withToken($this->apiToken)->postJson('/api/coverage', [
             'repository' => 'acme/app',
             'branch' => 'main',
             'commit_sha' => 'too-short',
@@ -87,7 +108,7 @@ class CoverageApiTest extends TestCase
 
     public function test_missing_clover_file_returns_422(): void
     {
-        $response = $this->postJson('/api/coverage', [
+        $response = $this->withToken($this->apiToken)->postJson('/api/coverage', [
             'repository' => 'acme/app',
             'branch' => 'main',
             'commit_sha' => str_repeat('a', 40),
@@ -99,7 +120,7 @@ class CoverageApiTest extends TestCase
 
     public function test_file_is_stored(): void
     {
-        $this->postJson('/api/coverage', [
+        $this->withToken($this->apiToken)->postJson('/api/coverage', [
             'repository' => 'acme/app',
             'branch' => 'main',
             'commit_sha' => str_repeat('a', 40),
@@ -113,7 +134,7 @@ class CoverageApiTest extends TestCase
 
     public function test_job_is_dispatched(): void
     {
-        $this->postJson('/api/coverage', [
+        $this->withToken($this->apiToken)->postJson('/api/coverage', [
             'repository' => 'acme/app',
             'branch' => 'main',
             'commit_sha' => str_repeat('a', 40),
@@ -125,26 +146,21 @@ class CoverageApiTest extends TestCase
         });
     }
 
-    public function test_creates_repository_on_first_submission(): void
+    public function test_unknown_repository_returns_404(): void
     {
-        $this->postJson('/api/coverage', [
-            'repository' => 'acme/app',
+        $response = $this->withToken($this->apiToken)->postJson('/api/coverage', [
+            'repository' => 'unknown/repo',
             'branch' => 'main',
             'commit_sha' => str_repeat('a', 40),
             'clover_file' => UploadedFile::fake()->create('clover.xml', 100),
         ]);
 
-        $this->assertDatabaseHas('repositories', [
-            'owner' => 'acme',
-            'name' => 'app',
-        ]);
+        $response->assertStatus(404);
     }
 
     public function test_reuses_existing_repository(): void
     {
-        $repository = Repository::factory()->create(['owner' => 'acme', 'name' => 'app']);
-
-        $this->postJson('/api/coverage', [
+        $this->withToken($this->apiToken)->postJson('/api/coverage', [
             'repository' => 'acme/app',
             'branch' => 'main',
             'commit_sha' => str_repeat('a', 40),
@@ -152,12 +168,12 @@ class CoverageApiTest extends TestCase
         ]);
 
         $this->assertDatabaseCount('repositories', 1);
-        $this->assertEquals($repository->id, CoverageReport::first()->repository_id);
+        $this->assertEquals($this->repository->id, CoverageReport::first()->repository_id);
     }
 
     public function test_creates_pending_coverage_report(): void
     {
-        $this->postJson('/api/coverage', [
+        $this->withToken($this->apiToken)->postJson('/api/coverage', [
             'repository' => 'acme/app',
             'branch' => 'feature/login',
             'commit_sha' => str_repeat('b', 40),
@@ -173,9 +189,12 @@ class CoverageApiTest extends TestCase
 
     public function test_status_endpoint_returns_report_status(): void
     {
-        $report = CoverageReport::factory()->create(['status' => 'completed']);
+        $report = CoverageReport::factory()->create([
+            'repository_id' => $this->repository->id,
+            'status' => 'completed',
+        ]);
 
-        $response = $this->getJson("/api/coverage/status/{$report->id}");
+        $response = $this->withToken($this->apiToken)->getJson("/api/coverage/status/{$report->id}");
 
         $response->assertOk()
             ->assertJson([
@@ -186,9 +205,11 @@ class CoverageApiTest extends TestCase
 
     public function test_status_endpoint_includes_error_for_failed_reports(): void
     {
-        $report = CoverageReport::factory()->failed()->create();
+        $report = CoverageReport::factory()->failed()->create([
+            'repository_id' => $this->repository->id,
+        ]);
 
-        $response = $this->getJson("/api/coverage/status/{$report->id}");
+        $response = $this->withToken($this->apiToken)->getJson("/api/coverage/status/{$report->id}");
 
         $response->assertOk()
             ->assertJson([
@@ -199,7 +220,7 @@ class CoverageApiTest extends TestCase
 
     public function test_status_endpoint_returns_404_for_missing_report(): void
     {
-        $response = $this->getJson('/api/coverage/status/999');
+        $response = $this->withToken($this->apiToken)->getJson('/api/coverage/status/999');
 
         $response->assertNotFound();
     }

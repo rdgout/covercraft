@@ -40,6 +40,11 @@ class Repository extends Model
         return $this->hasMany(CoverageReport::class);
     }
 
+    public function pullRequestComments(): HasMany
+    {
+        return $this->hasMany(PullRequestComment::class);
+    }
+
     public function latestCoverageReport(): HasOne
     {
         return $this->hasOne(CoverageReport::class)

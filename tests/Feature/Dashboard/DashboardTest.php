@@ -6,12 +6,26 @@ use App\Models\CoverageFile;
 use App\Models\CoverageReport;
 use App\Models\Repository;
 use App\Models\RepositoryFileCache;
+use App\Models\Team;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class DashboardTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected User $user;
+
+    protected Team $team;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->user = User::factory()->withTeams(1)->create();
+        $this->team = $this->user->teams->first();
+        $this->actingAs($this->user);
+    }
 
     public function test_index_page_renders(): void
     {
@@ -23,7 +37,7 @@ class DashboardTest extends TestCase
 
     public function test_index_shows_repositories(): void
     {
-        $repo = Repository::factory()->create(['owner' => 'acme', 'name' => 'app']);
+        $repo = Repository::factory()->forTeam($this->team)->create(['owner' => 'acme', 'name' => 'app']);
         CoverageReport::factory()->create([
             'repository_id' => $repo->id,
             'coverage_percentage' => 85.50,
@@ -46,7 +60,7 @@ class DashboardTest extends TestCase
 
     public function test_repository_page_renders(): void
     {
-        $repo = Repository::factory()->create();
+        $repo = Repository::factory()->forTeam($this->team)->create();
 
         $response = $this->get("/dashboard/{$repo->id}");
 
@@ -56,7 +70,7 @@ class DashboardTest extends TestCase
 
     public function test_repository_page_shows_branches(): void
     {
-        $repo = Repository::factory()->create();
+        $repo = Repository::factory()->forTeam($this->team)->create();
         CoverageReport::factory()->create([
             'repository_id' => $repo->id,
             'branch' => 'main',
@@ -77,7 +91,7 @@ class DashboardTest extends TestCase
 
     public function test_repository_page_shows_comparison_to_default_branch(): void
     {
-        $repo = Repository::factory()->create(['default_branch' => 'main']);
+        $repo = Repository::factory()->forTeam($this->team)->create(['default_branch' => 'main']);
         CoverageReport::factory()->create([
             'repository_id' => $repo->id,
             'branch' => 'main',
@@ -97,7 +111,7 @@ class DashboardTest extends TestCase
 
     public function test_branch_page_renders_with_file_tree(): void
     {
-        $repo = Repository::factory()->create();
+        $repo = Repository::factory()->forTeam($this->team)->create();
         $report = CoverageReport::factory()->create([
             'repository_id' => $repo->id,
             'branch' => 'main',
@@ -123,7 +137,7 @@ class DashboardTest extends TestCase
 
     public function test_branch_page_shows_comparison(): void
     {
-        $repo = Repository::factory()->create(['default_branch' => 'main']);
+        $repo = Repository::factory()->forTeam($this->team)->create(['default_branch' => 'main']);
         CoverageReport::factory()->create([
             'repository_id' => $repo->id,
             'branch' => 'main',
@@ -148,7 +162,7 @@ class DashboardTest extends TestCase
 
     public function test_branch_page_returns_404_for_missing_report(): void
     {
-        $repo = Repository::factory()->create();
+        $repo = Repository::factory()->forTeam($this->team)->create();
 
         $response = $this->get("/dashboard/{$repo->id}/nonexistent");
 
@@ -157,7 +171,7 @@ class DashboardTest extends TestCase
 
     public function test_file_page_renders(): void
     {
-        $repo = Repository::factory()->create();
+        $repo = Repository::factory()->forTeam($this->team)->create();
         $report = CoverageReport::factory()->create([
             'repository_id' => $repo->id,
             'branch' => 'main',
@@ -185,7 +199,7 @@ class DashboardTest extends TestCase
 
     public function test_file_page_returns_404_for_missing_file(): void
     {
-        $repo = Repository::factory()->create();
+        $repo = Repository::factory()->forTeam($this->team)->create();
         CoverageReport::factory()->create([
             'repository_id' => $repo->id,
             'branch' => 'main',
@@ -198,7 +212,7 @@ class DashboardTest extends TestCase
 
     public function test_branch_with_slashes_in_name(): void
     {
-        $repo = Repository::factory()->create();
+        $repo = Repository::factory()->forTeam($this->team)->create();
         CoverageReport::factory()->create([
             'repository_id' => $repo->id,
             'branch' => 'feature/auth/login',

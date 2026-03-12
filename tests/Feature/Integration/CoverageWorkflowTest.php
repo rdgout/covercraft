@@ -7,26 +7,51 @@ use App\Models\CoverageFile;
 use App\Models\CoverageReport;
 use App\Models\Repository;
 use App\Models\RepositoryFileCache;
+use App\Models\Team;
+use App\Models\TeamAccessToken;
+use App\Models\User;
 use App\Services\CloverParser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class CoverageWorkflowTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected User $user;
+
+    protected Team $team;
+
+    protected string $apiToken;
+
     protected function setUp(): void
     {
         parent::setUp();
         Storage::fake('local');
+
+        $this->user = User::factory()->withTeams(1)->create();
+        $this->team = $this->user->teams->first();
+        $this->actingAs($this->user);
+
+        $plainToken = Str::random(64);
+        TeamAccessToken::factory()->forTeam($this->team)->create([
+            'token' => hash('sha256', $plainToken),
+        ]);
+        $this->apiToken = $plainToken;
     }
 
     public function test_end_to_end_api_to_job_to_dashboard(): void
     {
         Queue::fake();
+
+        Repository::factory()->forTeam($this->team)->create([
+            'owner' => 'acme',
+            'name' => 'app',
+        ]);
 
         $cloverXml = <<<'XML'
 <?xml version="1.0" encoding="UTF-8"?>
@@ -46,7 +71,7 @@ XML;
 
         $file = UploadedFile::fake()->createWithContent('clover.xml', $cloverXml);
 
-        $response = $this->postJson('/api/coverage', [
+        $response = $this->withToken($this->apiToken)->postJson('/api/coverage', [
             'repository' => 'acme/app',
             'branch' => 'main',
             'commit_sha' => str_repeat('a', 40),
@@ -99,7 +124,7 @@ XML;
     {
         Queue::fake();
 
-        $repository = Repository::factory()->create(['owner' => 'acme', 'name' => 'app']);
+        $repository = Repository::factory()->forTeam($this->team)->create(['owner' => 'acme', 'name' => 'app']);
 
         $firstXml = <<<'XML'
 <?xml version="1.0" encoding="UTF-8"?>
@@ -110,7 +135,7 @@ XML;
 XML;
 
         $firstFile = UploadedFile::fake()->createWithContent('clover.xml', $firstXml);
-        $this->postJson('/api/coverage', [
+        $this->withToken($this->apiToken)->postJson('/api/coverage', [
             'repository' => 'acme/app',
             'branch' => 'main',
             'commit_sha' => str_repeat('a', 40),
@@ -133,7 +158,7 @@ XML;
 XML;
 
         $secondFile = UploadedFile::fake()->createWithContent('clover.xml', $secondXml);
-        $this->postJson('/api/coverage', [
+        $this->withToken($this->apiToken)->postJson('/api/coverage', [
             'repository' => 'acme/app',
             'branch' => 'main',
             'commit_sha' => str_repeat('b', 40),
@@ -160,7 +185,7 @@ XML;
     {
         Queue::fake();
 
-        $repository = Repository::factory()->create([
+        $repository = Repository::factory()->forTeam($this->team)->create([
             'owner' => 'acme',
             'name' => 'app',
             'default_branch' => 'main',

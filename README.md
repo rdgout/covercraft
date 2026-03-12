@@ -1,59 +1,374 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# CoverCraft - Code Coverage Tracking Platform
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A self-hosted code coverage tracking platform built with Laravel. Track, visualize, and monitor your code coverage across repositories, branches, and pull requests.
 
-## About Laravel
+## Features
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- 📊 **Coverage Tracking** - Upload and track code coverage reports across multiple repositories
+- 🌳 **Branch Management** - Monitor coverage for different branches independently
+- 📈 **Visual Reports** - Interactive file-level coverage visualization with line-by-line analysis
+- 🏷️ **Coverage Badges** - Generate SVG badges for your README files
+- 👥 **Team Collaboration** - Multi-user support with team-based access control
+- 🔑 **API Tokens** - Secure token-based authentication for CI/CD integration
+- 🔗 **GitHub Integration** - Native webhook support for automated coverage updates
+- 🎯 **Trend Analysis** - Track coverage changes over time
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Requirements
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- PHP 8.4+
+- Composer
+- Node.js 18+ and npm
+- SQLite (default) or MySQL/PostgreSQL
 
-## Learning Laravel
+## Local Development Setup
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+### 1. Clone and Install Dependencies
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+```bash
+git clone https://github.com/yourusername/covercraft.git
+cd covercraft
+composer install
+npm install
+```
 
-## Laravel Sponsors
+### 2. Environment Configuration
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+```bash
+cp .env.example .env
+php artisan key:generate
+```
 
-### Premium Partners
+Update your `.env` file with your database credentials if not using SQLite:
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+```env
+DB_CONNECTION=sqlite
+# DB_CONNECTION=mysql
+# DB_HOST=127.0.0.1
+# DB_PORT=3306
+# DB_DATABASE=covercraft
+# DB_USERNAME=root
+# DB_PASSWORD=
+```
+
+### 3. Database Setup
+
+```bash
+php artisan migrate
+```
+
+### 4. Build Frontend Assets
+
+```bash
+npm run build
+```
+
+For development with hot reloading:
+
+```bash
+npm run dev
+```
+
+### 5. Start Development Server
+
+```bash
+php artisan serve
+```
+
+Visit `http://localhost:8000` to access the application.
+
+## Getting Started
+
+### Step 1: Create an Account
+
+1. Navigate to your CoverCraft instance (e.g., `https://covercraft.yourdomain.com`)
+2. Click **Register** in the top navigation
+3. Fill in your details:
+   - Name
+   - Email address
+   - Password
+4. Click **Register** to create your account
+5. You'll be automatically logged in and redirected to the dashboard
+
+### Step 2: Create a Repository/Project
+
+1. From the dashboard, click **Repositories** in the navigation
+2. Click **New Repository**
+3. Fill in the repository details:
+   - **Repository Name**: Your repository name (e.g., `my-awesome-project`)
+   - **Owner/Organization**: The owner or organization name (e.g., `acme-corp`)
+   - **Description** (optional): Brief description of the project
+4. Click **Create Repository**
+5. Your repository will be created and you'll see it in your repositories list
+
+### Step 3: Generate an API Token
+
+API tokens are used to authenticate coverage uploads from your CI/CD pipeline.
+
+1. Click **API Tokens** in the navigation
+2. Click **Generate New Token**
+3. Fill in the token details:
+   - **Token Name**: A descriptive name (e.g., `GitHub Actions - my-project`)
+   - **Description** (optional): Purpose or scope of the token
+4. Click **Create Token**
+5. **Important**: Copy the generated token immediately - it will only be shown once
+6. Store the token securely (you'll need it for the next step)
+
+### Step 4: Configure GitHub Secrets
+
+1. Go to your GitHub repository
+2. Navigate to **Settings** → **Secrets and variables** → **Actions**
+3. Click **New repository secret**
+4. Add the following secret:
+   - **Name**: `COVERCRAFT_TOKEN`
+   - **Value**: The API token you copied from Step 3
+5. Click **Add secret**
+
+### Step 5: Set Up GitHub Actions Workflow
+
+Create a new workflow file in your repository at `.github/workflows/coverage.yml`:
+
+```yaml
+name: Code Coverage
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: xdebug
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-progress
+
+      - name: Run tests with coverage
+        run: vendor/bin/phpunit --coverage-clover coverage.xml
+
+      - name: Upload coverage to CoverCraft
+        env:
+          COVERCRAFT_TOKEN: ${{ secrets.COVERCRAFT_TOKEN }}
+          COVERCRAFT_URL: https://covercraft.yourdomain.com
+        run: |
+          curl -X POST "$COVERCRAFT_URL/api/coverage" \
+            -H "Authorization: Bearer $COVERCRAFT_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d @- << EOF
+          {
+            "repository": "${{ github.repository }}",
+            "branch": "${{ github.ref_name }}",
+            "commit": "${{ github.sha }}",
+            "coverage": $(cat coverage.xml | base64 -w 0)
+          }
+          EOF
+```
+
+For **JavaScript/TypeScript** projects using Jest:
+
+```yaml
+- name: Run tests with coverage
+  run: npm test -- --coverage --coverageReporters=json
+
+- name: Upload coverage to CoverCraft
+  env:
+    COVERCRAFT_TOKEN: ${{ secrets.COVERCRAFT_TOKEN }}
+    COVERCRAFT_URL: https://covercraft.yourdomain.com
+  run: |
+    curl -X POST "$COVERCRAFT_URL/api/coverage" \
+      -H "Authorization: Bearer $COVERCRAFT_TOKEN" \
+      -H "Content-Type: application/json" \
+      -d @- << EOF
+    {
+      "repository": "${{ github.repository }}",
+      "branch": "${{ github.ref_name }}",
+      "commit": "${{ github.sha }}",
+      "coverage": $(cat coverage/coverage-final.json | base64 -w 0)
+    }
+    EOF
+```
+
+### Step 6: Commit and Push
+
+```bash
+git add .github/workflows/coverage.yml
+git commit -m "Add code coverage reporting"
+git push
+```
+
+The workflow will run automatically on your next push or pull request.
+
+## Adding Coverage Badges to Your README
+
+Once you've uploaded coverage data, you can add a badge to your repository's README:
+
+```markdown
+![Coverage](https://covercraft.yourdomain.com/badge/owner/repository-name/main)
+```
+
+Replace:
+- `covercraft.yourdomain.com` with your CoverCraft instance URL
+- `owner` with your repository owner/organization
+- `repository-name` with your repository name
+- `main` with your default branch name
+
+### Badge Examples
+
+```markdown
+<!-- Basic badge -->
+![Coverage](https://covercraft.yourdomain.com/badge/acme-corp/my-project/main)
+
+<!-- Badge with link to coverage report -->
+[![Coverage](https://covercraft.yourdomain.com/badge/acme-corp/my-project/main)](https://covercraft.yourdomain.com/dashboard/acme-corp/my-project/main)
+```
+
+## API Reference
+
+### Upload Coverage
+
+**Endpoint**: `POST /api/coverage`
+
+**Headers**:
+```
+Authorization: Bearer YOUR_API_TOKEN
+Content-Type: application/json
+```
+
+**Request Body**:
+```json
+{
+  "repository": "owner/repository-name",
+  "branch": "main",
+  "commit": "abc123def456",
+  "coverage": "base64_encoded_coverage_data"
+}
+```
+
+**Response**:
+```json
+{
+  "success": true,
+  "report_id": "uuid",
+  "coverage_percentage": 85.4
+}
+```
+
+### Check Coverage Status
+
+**Endpoint**: `GET /api/coverage/status/{report_id}`
+
+**Response**:
+```json
+{
+  "status": "processed",
+  "repository": "owner/repository-name",
+  "branch": "main",
+  "coverage": 85.4,
+  "processed_at": "2026-02-17T10:30:00Z"
+}
+```
+
+## Deployment
+
+### Using Laravel Forge
+
+1. Create a new server in Laravel Forge
+2. Add your repository
+3. Set environment variables
+4. Configure the deployment script
+5. Enable Quick Deploy
+
+### Using Docker (Laravel Sail)
+
+```bash
+# Start the application
+./vendor/bin/sail up -d
+
+# Run migrations
+./vendor/bin/sail artisan migrate
+
+# Build assets
+./vendor/bin/sail npm run build
+```
+
+### Manual Deployment
+
+```bash
+# On your server
+git pull origin main
+composer install --no-dev --optimize-autoloader
+npm run build
+php artisan migrate --force
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+```
+
+## Configuration
+
+### Storage
+
+Configure storage for coverage reports in `config/filesystems.php`. By default, reports are stored locally.
+
+### Queue Configuration
+
+For better performance with large coverage reports, configure queues:
+
+```env
+QUEUE_CONNECTION=database
+```
+
+Then run the queue worker:
+
+```bash
+php artisan queue:work
+```
+
+## Troubleshooting
+
+### Coverage Upload Fails
+
+1. Verify your API token is correct
+2. Check that the repository exists in CoverCraft
+3. Ensure the coverage file format is supported (Clover XML, JaCoCo XML, LCOV)
+4. Check application logs: `storage/logs/laravel.log`
+
+### Badge Not Displaying
+
+1. Verify the badge URL is correct
+2. Ensure coverage has been uploaded for that branch
+3. Check that the repository and branch exist
+
+### GitHub Actions Timeout
+
+If coverage generation takes too long:
+
+1. Reduce the number of files being analyzed
+2. Use parallel test execution
+3. Cache dependencies between workflow runs
 
 ## Contributing
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
-
-## Code of Conduct
-
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+This project is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+
+## Support
+
+For issues, questions, or feature requests, please open an issue on GitHub.
+
+---
+
+Built with ❤️ using Laravel 12

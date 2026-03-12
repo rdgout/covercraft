@@ -3,21 +3,43 @@
 namespace Tests\Feature\Properties;
 
 use App\Jobs\ProcessCoverageJob;
+use App\Models\Repository;
+use App\Models\Team;
+use App\Models\TeamAccessToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class ApiPropertyTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected Team $team;
+
+    protected string $apiToken;
+
+    protected Repository $repository;
+
     protected function setUp(): void
     {
         parent::setUp();
         Storage::fake('local');
         Queue::fake();
+
+        $this->team = Team::factory()->create();
+        $plainToken = Str::random(64);
+        TeamAccessToken::factory()->forTeam($this->team)->create([
+            'token' => hash('sha256', $plainToken),
+        ]);
+        $this->apiToken = $plainToken;
+
+        $this->repository = Repository::factory()->forTeam($this->team)->create([
+            'owner' => 'acme',
+            'name' => 'app',
+        ]);
     }
 
     /**
@@ -37,7 +59,7 @@ class ApiPropertyTest extends TestCase
             $fieldToOmit = $requiredFields[array_rand($requiredFields)];
 
             $payload = [
-                'repository' => 'owner-'.rand(1, 100).'/repo-'.rand(1, 100),
+                'repository' => 'acme/app',
                 'branch' => 'branch-'.rand(1, 100),
                 'commit_sha' => str_repeat(dechex(rand(0, 15)), 40),
                 'clover_file' => UploadedFile::fake()->create('clover.xml', 100),
@@ -45,7 +67,7 @@ class ApiPropertyTest extends TestCase
 
             unset($payload[$fieldToOmit]);
 
-            $response = $this->postJson('/api/coverage', $payload);
+            $response = $this->withToken($this->apiToken)->postJson('/api/coverage', $payload);
 
             $response->assertStatus(422, "Seed: {$seed}, iteration: {$i}, omitted: {$fieldToOmit}");
         }
@@ -65,7 +87,7 @@ class ApiPropertyTest extends TestCase
         $storedPaths = [];
 
         for ($i = 0; $i < 100; $i++) {
-            $this->postJson('/api/coverage', [
+            $this->withToken($this->apiToken)->postJson('/api/coverage', [
                 'repository' => 'acme/app',
                 'branch' => 'main',
                 'commit_sha' => fake()->sha1(),
@@ -92,8 +114,8 @@ class ApiPropertyTest extends TestCase
         for ($i = 0; $i < 100; $i++) {
             Queue::fake();
 
-            $response = $this->postJson('/api/coverage', [
-                'repository' => 'owner-'.rand(1, 100).'/repo-'.rand(1, 100),
+            $response = $this->withToken($this->apiToken)->postJson('/api/coverage', [
+                'repository' => 'acme/app',
                 'branch' => 'branch-'.rand(1, 100),
                 'commit_sha' => fake()->sha1(),
                 'clover_file' => UploadedFile::fake()->create('clover.xml', 100),

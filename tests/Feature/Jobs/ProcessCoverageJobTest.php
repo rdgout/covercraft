@@ -2,11 +2,14 @@
 
 namespace Tests\Feature\Jobs;
 
+use App\Jobs\PostPullRequestCommentJob;
 use App\Jobs\ProcessCoverageJob;
 use App\Models\CoverageFile;
 use App\Models\CoverageReport;
 use App\Models\Repository;
+use App\Services\CloverParser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -22,14 +25,27 @@ class ProcessCoverageJobTest extends TestCase
 
     public function test_successfully_parses_clover_xml(): void
     {
+        Queue::fake();
         $report = $this->createReportWithCloverFile($this->validCloverXml());
 
-        (new ProcessCoverageJob($report->id))->handle(new \App\Services\CloverParser);
+        (new ProcessCoverageJob($report->id))->handle(new CloverParser);
 
         $report->refresh();
         $this->assertEquals('completed', $report->status);
         $this->assertNotNull($report->coverage_percentage);
         $this->assertNotNull($report->completed_at);
+    }
+
+    public function test_dispatches_post_pull_request_comment_job_after_processing(): void
+    {
+        Queue::fake();
+        $report = $this->createReportWithCloverFile($this->validCloverXml());
+
+        (new ProcessCoverageJob($report->id))->handle(new CloverParser);
+
+        Queue::assertPushed(PostPullRequestCommentJob::class, function ($job) use ($report) {
+            return $job->coverageReportId === $report->id;
+        });
     }
 
     public function test_creates_correct_number_of_file_records(): void
@@ -52,7 +68,7 @@ class ProcessCoverageJobTest extends TestCase
 XML;
 
         $report = $this->createReportWithCloverFile($xml);
-        (new ProcessCoverageJob($report->id))->handle(new \App\Services\CloverParser);
+        (new ProcessCoverageJob($report->id))->handle(new CloverParser);
 
         $this->assertCount(3, CoverageFile::where('coverage_report_id', $report->id)->get());
     }
@@ -74,7 +90,7 @@ XML;
 XML;
 
         $report = $this->createReportWithCloverFile($xml);
-        (new ProcessCoverageJob($report->id))->handle(new \App\Services\CloverParser);
+        (new ProcessCoverageJob($report->id))->handle(new CloverParser);
 
         $report->refresh();
         $this->assertEquals('50.00', $report->coverage_percentage);
@@ -95,7 +111,7 @@ XML;
             ['repository_id' => $repository->id, 'branch' => 'main'],
         );
 
-        (new ProcessCoverageJob($newReport->id))->handle(new \App\Services\CloverParser);
+        (new ProcessCoverageJob($newReport->id))->handle(new CloverParser);
 
         $this->assertTrue($oldReport->fresh()->archived);
         $this->assertFalse($newReport->fresh()->archived);
@@ -116,7 +132,7 @@ XML;
             ['repository_id' => $repository->id, 'branch' => 'feature/login'],
         );
 
-        (new ProcessCoverageJob($featureReport->id))->handle(new \App\Services\CloverParser);
+        (new ProcessCoverageJob($featureReport->id))->handle(new CloverParser);
 
         $this->assertFalse($mainReport->fresh()->archived);
     }
@@ -124,7 +140,7 @@ XML;
     public function test_stores_compressed_line_coverage_data(): void
     {
         $report = $this->createReportWithCloverFile($this->validCloverXml());
-        (new ProcessCoverageJob($report->id))->handle(new \App\Services\CloverParser);
+        (new ProcessCoverageJob($report->id))->handle(new CloverParser);
 
         $file = CoverageFile::where('coverage_report_id', $report->id)->first();
         $decompressed = json_decode(gzuncompress($file->line_coverage_data), true);
