@@ -186,7 +186,7 @@ class DashboardTest extends TestCase
             'coverage_percentage' => 50.00,
             'covered_lines' => 1,
             'total_lines' => 2,
-            'line_coverage_data' => gzcompress(json_encode($lineCoverage)),
+            'line_coverage_data' => base64_encode(gzcompress(json_encode($lineCoverage))),
         ]);
 
         $response = $this->get("/dashboard/{$repo->id}/main/file?path=src/Foo.php");
