@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Actions\CacheRepositoryFilesAction;
 use App\Contracts\GitHubServiceInterface;
 use App\Models\Repository;
 use Illuminate\Console\Command;
@@ -9,25 +10,36 @@ use Illuminate\Console\Command;
 class FetchRepositoryFilesCommand extends Command
 {
     protected $signature = 'coverage:fetch-files
-                            {repository : The repository ID}
+                            {repository : The repository ID or owner/name slug}
                             {branch? : The branch name}
                             {commit? : The commit SHA}
                             {--latest : Fetch files for the latest coverage report}';
 
     protected $description = 'Fetch and cache repository files from GitHub';
 
-    public function __construct(private GitHubServiceInterface $githubService)
-    {
+    public function __construct(
+        private GitHubServiceInterface $githubService,
+        private CacheRepositoryFilesAction $cacheAction,
+    ) {
         parent::__construct();
     }
 
     public function handle(): int
     {
-        $repositoryId = $this->argument('repository');
-        $repository = Repository::find($repositoryId);
+        $repositoryArgument = $this->argument('repository');
+
+        if (str_contains($repositoryArgument, '/')) {
+            [$owner, $name] = explode('/', $repositoryArgument, 2);
+            $repository = Repository::query()
+                ->where('owner', $owner)
+                ->where('name', $name)
+                ->first();
+        } else {
+            $repository = Repository::find($repositoryArgument);
+        }
 
         if (! $repository) {
-            $this->error("Repository with ID {$repositoryId} not found.");
+            $this->error("Repository '{$repositoryArgument}' not found.");
 
             return self::FAILURE;
         }
@@ -71,7 +83,7 @@ class FetchRepositoryFilesCommand extends Command
     private function fetchFiles(Repository $repository, string $branch, string $commit): int
     {
         try {
-            $files = $this->githubService->getOrFetchRepositoryFiles($repository, $branch, $commit);
+            $files = $this->cacheAction->execute($repository, $branch, $commit);
 
             $this->info('✓ Successfully cached '.count($files).' files');
             $this->line('  Branch: '.$branch);

@@ -84,13 +84,6 @@ XML;
         $report = CoverageReport::first();
         $this->assertEquals('pending', $report->status);
 
-        (new ProcessCoverageJob($report->id))->handle(new CloverParser);
-
-        $report->refresh();
-        $this->assertEquals('completed', $report->status);
-        $this->assertEquals('75.00', $report->coverage_percentage);
-        $this->assertCount(2, CoverageFile::where('coverage_report_id', $report->id)->get());
-
         RepositoryFileCache::create([
             'repository_id' => $report->repository_id,
             'branch' => 'main',
@@ -98,6 +91,13 @@ XML;
             'files' => ['src/Foo.php', 'src/Bar.php', 'src/Baz.php'],
             'cached_at' => now(),
         ]);
+
+        (new ProcessCoverageJob($report->id))->handle(new CloverParser);
+
+        $report->refresh();
+        $this->assertEquals('completed', $report->status);
+        $this->assertEquals('75.00', $report->coverage_percentage);
+        $this->assertCount(2, CoverageFile::where('coverage_report_id', $report->id)->get());
 
         $repo = Repository::first();
 
@@ -143,6 +143,15 @@ XML;
         ]);
 
         $firstReport = CoverageReport::first();
+
+        RepositoryFileCache::create([
+            'repository_id' => $firstReport->repository_id,
+            'branch' => $firstReport->branch,
+            'commit_sha' => $firstReport->commit_sha,
+            'files' => [],
+            'cached_at' => now(),
+        ]);
+
         (new ProcessCoverageJob($firstReport->id))->handle(new CloverParser);
 
         $firstReport->refresh();
@@ -166,6 +175,12 @@ XML;
         ]);
 
         $secondReport = CoverageReport::where('commit_sha', str_repeat('b', 40))->first();
+
+        RepositoryFileCache::updateOrCreate(
+            ['repository_id' => $secondReport->repository_id, 'branch' => $secondReport->branch],
+            ['commit_sha' => $secondReport->commit_sha, 'files' => [], 'cached_at' => now()],
+        );
+
         (new ProcessCoverageJob($secondReport->id))->handle(new CloverParser);
 
         $this->assertTrue($firstReport->fresh()->archived);
@@ -206,6 +221,15 @@ XML;
             'branch' => 'main',
             'clover_file_path' => 'coverage/main.xml',
         ]);
+
+        RepositoryFileCache::create([
+            'repository_id' => $repository->id,
+            'branch' => 'main',
+            'commit_sha' => $mainReport->commit_sha,
+            'files' => [],
+            'cached_at' => now(),
+        ]);
+
         (new ProcessCoverageJob($mainReport->id))->handle(new CloverParser);
 
         $featureXml = <<<'XML'
@@ -223,7 +247,6 @@ XML;
             'branch' => 'feature/improve',
             'clover_file_path' => 'coverage/feature.xml',
         ]);
-        (new ProcessCoverageJob($featureReport->id))->handle(new CloverParser);
 
         RepositoryFileCache::create([
             'repository_id' => $repository->id,
@@ -232,6 +255,8 @@ XML;
             'files' => ['src/A.php'],
             'cached_at' => now(),
         ]);
+
+        (new ProcessCoverageJob($featureReport->id))->handle(new CloverParser);
 
         $mainReport->refresh();
         $featureReport->refresh();

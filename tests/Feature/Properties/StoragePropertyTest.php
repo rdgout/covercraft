@@ -6,6 +6,7 @@ use App\Jobs\ProcessCoverageJob;
 use App\Models\CoverageFile;
 use App\Models\CoverageReport;
 use App\Models\Repository;
+use App\Models\RepositoryFileCache;
 use App\Services\CloverParser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
@@ -19,6 +20,17 @@ class StoragePropertyTest extends TestCase
     {
         parent::setUp();
         Storage::fake('local');
+    }
+
+    private function createFileCacheFor(CoverageReport $report): void
+    {
+        RepositoryFileCache::create([
+            'repository_id' => $report->repository_id,
+            'branch' => $report->branch,
+            'commit_sha' => $report->commit_sha,
+            'files' => [],
+            'cached_at' => now(),
+        ]);
     }
 
     /**
@@ -45,6 +57,7 @@ class StoragePropertyTest extends TestCase
                 'clover_file_path' => $filename,
             ]);
 
+            $this->createFileCacheFor($report);
             $job = new ProcessCoverageJob($report->id);
 
             try {
@@ -91,6 +104,7 @@ class StoragePropertyTest extends TestCase
                 'clover_file_path' => $filename,
             ]);
 
+            $this->createFileCacheFor($report);
             (new ProcessCoverageJob($report->id))->handle(new CloverParser);
 
             $report->refresh();
@@ -129,6 +143,7 @@ class StoragePropertyTest extends TestCase
                 'clover_file_path' => $filename,
             ]);
 
+            $this->createFileCacheFor($report);
             (new ProcessCoverageJob($report->id))->handle(new CloverParser);
 
             $actualCount = CoverageFile::where('coverage_report_id', $report->id)->count();
@@ -170,6 +185,7 @@ class StoragePropertyTest extends TestCase
                 'clover_file_path' => $filename,
             ]);
 
+            $this->createFileCacheFor($report);
             (new ProcessCoverageJob($report->id))->handle(new CloverParser);
 
             $file = CoverageFile::where('coverage_report_id', $report->id)->first();
@@ -216,6 +232,7 @@ class StoragePropertyTest extends TestCase
                 'clover_file_path' => $filename2,
             ]);
 
+            $this->createFileCacheFor($second);
             (new ProcessCoverageJob($second->id))->handle(new CloverParser);
 
             $this->assertTrue($first->fresh()->archived, "Seed: {$seed}, iteration: {$i}");

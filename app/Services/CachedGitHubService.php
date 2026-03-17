@@ -65,22 +65,9 @@ class CachedGitHubService implements GitHubServiceInterface
         return $this->github->fetchRepositoryFiles($repository, $commitSha);
     }
 
-    /**
-     * @return list<string>
-     */
-    public function getOrFetchRepositoryFiles(Repository $repository, string $branch, string $commitSha): array
-    {
-        return $this->github->getOrFetchRepositoryFiles($repository, $branch, $commitSha);
-    }
-
     public function verifyWebhookSignature(string $payload, string $signature, string $secret): bool
     {
         return $this->github->verifyWebhookSignature($payload, $signature, $secret);
-    }
-
-    public function handlePushWebhook(array $payload): void
-    {
-        $this->github->handlePushWebhook($payload);
     }
 
     public function fetchFileContents(Repository $repository, string $commitSha, string $filePath): string

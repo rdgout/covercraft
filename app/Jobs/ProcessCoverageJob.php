@@ -16,15 +16,28 @@ class ProcessCoverageJob implements ShouldQueue
 
     public function __construct(public int $coverageReportId) {}
 
+    public int $tries = 5;
+
     public function handle(CloverParser $parser): void
     {
         $report = CoverageReport::findOrFail($this->coverageReportId);
 
-        // Get known repository files to help with path matching
-        $repositoryFiles = $report->repository->fileCache()
+        $fileCache = $report->repository->fileCache()
             ->where('branch', $report->branch)
-            ->first()
-            ?->files ?? [];
+            ->first();
+
+        if ($fileCache === null) {
+            FetchRepositoryFilesJob::dispatch($report->repository_id, $report->branch, $report->commit_sha);
+            $this->release(30);
+
+            return;
+        }
+
+        if ($fileCache->commit_sha !== $report->commit_sha) {
+            FetchRepositoryFilesJob::dispatch($report->repository_id, $report->branch, $report->commit_sha);
+        }
+
+        $repositoryFiles = $fileCache->files;
 
         $cloverPath = Storage::disk(config('coverage.storage_disk'))->path($report->clover_file_path);
         $coverageData = $parser->parse($cloverPath, $repositoryFiles);

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Contracts\GitHubServiceInterface;
+use App\Jobs\FetchRepositoryFilesJob;
 use App\Jobs\PostPullRequestCommentJob;
 use App\Models\CoverageReport;
 use App\Models\Repository;
@@ -36,8 +37,9 @@ class WebhookController extends Controller
             return response()->json(['error' => 'Invalid signature'], 403);
         }
 
-        if ($event === 'push') {
-            $githubService->handlePushWebhook($data);
+        if ($event === 'push' && isset($data['ref'], $data['after'])) {
+            $branch = str_replace('refs/heads/', '', $data['ref']);
+            FetchRepositoryFilesJob::dispatch($repository->id, $branch, $data['after']);
         }
 
         return response()->json(['status' => 'ok']);
