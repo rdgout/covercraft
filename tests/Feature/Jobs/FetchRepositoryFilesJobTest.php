@@ -6,6 +6,7 @@ use App\Actions\CacheRepositoryFilesAction;
 use App\Jobs\FetchRepositoryFilesJob;
 use App\Models\Repository;
 use App\Models\RepositoryFileCache;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
@@ -68,7 +69,7 @@ class FetchRepositoryFilesJobTest extends TestCase
 
     public function test_fails_when_repository_not_found(): void
     {
-        $this->expectException(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
+        $this->expectException(ModelNotFoundException::class);
 
         (new FetchRepositoryFilesJob(99999, 'main', str_repeat('a', 40)))->handle(
             app(CacheRepositoryFilesAction::class)
