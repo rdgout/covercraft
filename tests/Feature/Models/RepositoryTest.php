@@ -75,6 +75,28 @@ class RepositoryTest extends TestCase
         $this->assertEquals($current->id, $latest->id);
     }
 
+    public function test_latest_coverage_report_only_returns_default_branch(): void
+    {
+        $repository = Repository::factory()->create(['default_branch' => 'main']);
+
+        CoverageReport::factory()->create([
+            'repository_id' => $repository->id,
+            'branch' => 'feat/other-branch',
+            'archived' => false,
+        ]);
+
+        $defaultBranchReport = CoverageReport::factory()->create([
+            'repository_id' => $repository->id,
+            'branch' => 'main',
+            'archived' => false,
+        ]);
+
+        $latest = $repository->latestCoverageReport;
+
+        $this->assertNotNull($latest);
+        $this->assertEquals($defaultBranchReport->id, $latest->id);
+    }
+
     public function test_has_many_file_cache(): void
     {
         $repository = Repository::factory()->create();
