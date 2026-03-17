@@ -2,12 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Contracts\GitHubServiceInterface;
 use App\Http\Requests\ViewRepositoryRequest;
 use App\Models\CoverageReport;
 use App\Models\Repository;
 use App\Models\RepositoryFileCache;
 use App\Services\FileTreeBuilder;
-use App\Services\GitHubService;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -97,7 +97,7 @@ class DashboardController extends Controller
         $lineCoverage = $file->line_coverage;
 
         // Fetch file contents from GitHub
-        $githubService = app(GitHubService::class);
+        $githubService = app(GitHubServiceInterface::class);
         $sourceLines = [];
         $error = null;
 

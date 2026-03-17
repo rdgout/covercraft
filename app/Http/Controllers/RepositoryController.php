@@ -2,13 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Contracts\GitHubServiceInterface;
 use App\Http\Requests\CreateRepositoryRequest;
 use App\Http\Requests\DeleteRepositoryRequest;
 use App\Http\Requests\StoreRepositoryRequest;
 use App\Http\Requests\UpdateRepositoryRequest;
 use App\Http\Requests\ViewRepositoryRequest;
 use App\Models\Repository;
-use App\Services\GitHubService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -16,7 +16,7 @@ use Illuminate\View\View;
 
 class RepositoryController extends Controller
 {
-    public function __construct(private GitHubService $githubService) {}
+    public function __construct(private GitHubServiceInterface $githubService) {}
 
     public function index(): View
     {

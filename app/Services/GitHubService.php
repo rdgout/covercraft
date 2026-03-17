@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Contracts\GitHubServiceInterface;
 use App\Exceptions\GitHubApiException;
 use App\Models\Repository;
 use App\Models\RepositoryFileCache;
@@ -9,7 +10,7 @@ use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
 
-class GitHubService
+class GitHubService implements GitHubServiceInterface
 {
     /**
      * @return list<array{full_name: string, owner: string, name: string, default_branch: string}>

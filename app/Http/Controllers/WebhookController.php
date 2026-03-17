@@ -2,17 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Contracts\GitHubServiceInterface;
 use App\Jobs\PostPullRequestCommentJob;
 use App\Models\CoverageReport;
 use App\Models\Repository;
 use App\Services\GitHubAppService;
-use App\Services\GitHubService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class WebhookController extends Controller
 {
-    public function github(Request $request, GitHubService $githubService): JsonResponse
+    public function github(Request $request, GitHubServiceInterface $githubService): JsonResponse
     {
         $payload = $request->getContent();
         $signature = $request->header('X-Hub-Signature-256', '');
