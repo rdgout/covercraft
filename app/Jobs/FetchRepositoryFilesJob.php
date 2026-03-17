@@ -2,7 +2,7 @@
 
 namespace App\Jobs;
 
-use App\Contracts\GitHubServiceInterface;
+use App\Actions\CacheRepositoryFilesAction;
 use App\Models\Repository;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -17,10 +17,10 @@ class FetchRepositoryFilesJob implements ShouldQueue
         public string $commitSha,
     ) {}
 
-    public function handle(GitHubServiceInterface $githubService): void
+    public function handle(CacheRepositoryFilesAction $action): void
     {
         $repository = Repository::findOrFail($this->repositoryId);
 
-        $githubService->getOrFetchRepositoryFiles($repository, $this->branch, $this->commitSha);
+        $action->execute($repository, $this->branch, $this->commitSha);
     }
 }

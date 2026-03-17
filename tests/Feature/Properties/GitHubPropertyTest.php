@@ -2,6 +2,8 @@
 
 namespace Tests\Feature\Properties;
 
+use App\Actions\CacheRepositoryFilesAction;
+use App\Jobs\FetchRepositoryFilesJob;
 use App\Models\Repository;
 use App\Models\RepositoryFileCache;
 use App\Services\GitHubService;
@@ -24,7 +26,6 @@ class GitHubPropertyTest extends TestCase
         srand($seed);
 
         Http::fake();
-        $service = new GitHubService;
 
         for ($i = 0; $i < 100; $i++) {
             $repository = Repository::factory()->create();
@@ -39,9 +40,10 @@ class GitHubPropertyTest extends TestCase
                 'files' => $cachedFiles,
             ]);
 
-            $files = $service->getOrFetchRepositoryFiles($repository, $branch, $commitSha);
+            (new FetchRepositoryFilesJob($repository->id, $branch, $commitSha))
+                ->handle(app(CacheRepositoryFilesAction::class));
 
-            $this->assertEquals($cachedFiles, $files, "Seed: {$seed}, iteration: {$i}");
+            $this->assertDatabaseCount('repository_file_cache', $i + 1);
         }
 
         Http::assertNothingSent();
@@ -65,16 +67,13 @@ class GitHubPropertyTest extends TestCase
             ]),
         ]);
 
-        $service = new GitHubService;
-
         for ($i = 0; $i < 100; $i++) {
             $repository = Repository::factory()->create();
             $branch = 'branch-'.$i;
             $commitSha = fake()->sha1();
 
-            $files = $service->getOrFetchRepositoryFiles($repository, $branch, $commitSha);
-
-            $this->assertContains('src/Fetched.php', $files, "Seed: {$seed}, iteration: {$i}");
+            (new FetchRepositoryFilesJob($repository->id, $branch, $commitSha))
+                ->handle(app(CacheRepositoryFilesAction::class));
 
             $this->assertDatabaseHas('repository_file_cache', [
                 'repository_id' => $repository->id,

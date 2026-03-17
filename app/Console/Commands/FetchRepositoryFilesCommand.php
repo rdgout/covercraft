@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Actions\CacheRepositoryFilesAction;
 use App\Contracts\GitHubServiceInterface;
 use App\Models\Repository;
 use Illuminate\Console\Command;
@@ -16,8 +17,10 @@ class FetchRepositoryFilesCommand extends Command
 
     protected $description = 'Fetch and cache repository files from GitHub';
 
-    public function __construct(private GitHubServiceInterface $githubService)
-    {
+    public function __construct(
+        private GitHubServiceInterface $githubService,
+        private CacheRepositoryFilesAction $cacheAction,
+    ) {
         parent::__construct();
     }
 
@@ -80,7 +83,7 @@ class FetchRepositoryFilesCommand extends Command
     private function fetchFiles(Repository $repository, string $branch, string $commit): int
     {
         try {
-            $files = $this->githubService->getOrFetchRepositoryFiles($repository, $branch, $commit);
+            $files = $this->cacheAction->execute($repository, $branch, $commit);
 
             $this->info('✓ Successfully cached '.count($files).' files');
             $this->line('  Branch: '.$branch);

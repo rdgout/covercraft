@@ -2,7 +2,7 @@
 
 namespace Tests\Feature\Jobs;
 
-use App\Contracts\GitHubServiceInterface;
+use App\Actions\CacheRepositoryFilesAction;
 use App\Jobs\FetchRepositoryFilesJob;
 use App\Models\Repository;
 use App\Models\RepositoryFileCache;
@@ -29,7 +29,7 @@ class FetchRepositoryFilesJobTest extends TestCase
         ]);
 
         (new FetchRepositoryFilesJob($repository->id, 'main', str_repeat('a', 40)))->handle(
-            app(GitHubServiceInterface::class)
+            app(CacheRepositoryFilesAction::class)
         );
 
         $this->assertDatabaseHas('repository_file_cache', [
@@ -60,7 +60,7 @@ class FetchRepositoryFilesJobTest extends TestCase
         Http::fake();
 
         (new FetchRepositoryFilesJob($repository->id, 'main', $commitSha))->handle(
-            app(GitHubServiceInterface::class)
+            app(CacheRepositoryFilesAction::class)
         );
 
         Http::assertNothingSent();
@@ -71,7 +71,7 @@ class FetchRepositoryFilesJobTest extends TestCase
         $this->expectException(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
 
         (new FetchRepositoryFilesJob(99999, 'main', str_repeat('a', 40)))->handle(
-            app(GitHubServiceInterface::class)
+            app(CacheRepositoryFilesAction::class)
         );
     }
 }
