@@ -2,11 +2,13 @@
 
 namespace Tests\Feature\Jobs;
 
+use App\Jobs\FetchRepositoryFilesJob;
 use App\Jobs\PostPullRequestCommentJob;
 use App\Jobs\ProcessCoverageJob;
 use App\Models\CoverageFile;
 use App\Models\CoverageReport;
 use App\Models\Repository;
+use App\Models\RepositoryFileCache;
 use App\Services\CloverParser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
@@ -149,6 +151,71 @@ XML;
         $this->assertNotEmpty($decompressed);
     }
 
+    public function test_dispatches_fetch_files_job_and_releases_when_no_file_cache_exists(): void
+    {
+        Queue::fake();
+        $report = $this->createReportWithCloverFile($this->validCloverXml(), withFileCache: false);
+
+        (new ProcessCoverageJob($report->id))->handle(new CloverParser);
+
+        Queue::assertPushed(FetchRepositoryFilesJob::class, function ($job) use ($report) {
+            return $job->repositoryId === $report->repository_id
+                && $job->branch === $report->branch
+                && $job->commitSha === $report->commit_sha;
+        });
+
+        // Report should not be completed — job released itself for retry
+        $this->assertEquals('pending', $report->fresh()->status);
+    }
+
+    public function test_dispatches_fetch_files_job_when_cache_is_stale_but_proceeds(): void
+    {
+        Queue::fake();
+        $report = $this->createReportWithCloverFile($this->validCloverXml(), [
+            'commit_sha' => str_repeat('b', 40),
+        ], withFileCache: false);
+
+        RepositoryFileCache::create([
+            'repository_id' => $report->repository_id,
+            'branch' => $report->branch,
+            'commit_sha' => str_repeat('a', 40), // different commit = stale
+            'files' => [],
+            'cached_at' => now(),
+        ]);
+
+        (new ProcessCoverageJob($report->id))->handle(new CloverParser);
+
+        Queue::assertPushed(FetchRepositoryFilesJob::class, function ($job) use ($report) {
+            return $job->repositoryId === $report->repository_id
+                && $job->commitSha === str_repeat('b', 40);
+        });
+
+        // Job still completes with the existing cache
+        $this->assertEquals('completed', $report->fresh()->status);
+    }
+
+    public function test_does_not_dispatch_fetch_files_job_when_cache_is_current(): void
+    {
+        Queue::fake();
+        $commitSha = str_repeat('a', 40);
+        $report = $this->createReportWithCloverFile($this->validCloverXml(), [
+            'commit_sha' => $commitSha,
+        ], withFileCache: false);
+
+        RepositoryFileCache::create([
+            'repository_id' => $report->repository_id,
+            'branch' => $report->branch,
+            'commit_sha' => $commitSha,
+            'files' => [],
+            'cached_at' => now(),
+        ]);
+
+        (new ProcessCoverageJob($report->id))->handle(new CloverParser);
+
+        Queue::assertNotPushed(FetchRepositoryFilesJob::class);
+        $this->assertEquals('completed', $report->fresh()->status);
+    }
+
     public function test_failed_method_marks_report_as_failed(): void
     {
         $report = CoverageReport::factory()->pending()->create();
@@ -169,15 +236,27 @@ XML;
         $this->assertDatabaseMissing('coverage_reports', ['id' => 99999]);
     }
 
-    private function createReportWithCloverFile(string $xml, array $overrides = []): CoverageReport
+    private function createReportWithCloverFile(string $xml, array $overrides = [], bool $withFileCache = true): CoverageReport
     {
         $filename = 'coverage/test_'.uniqid().'.xml';
         Storage::disk('local')->put($filename, $xml);
 
-        return CoverageReport::factory()->pending()->create(array_merge(
+        $report = CoverageReport::factory()->pending()->create(array_merge(
             ['clover_file_path' => $filename],
             $overrides,
         ));
+
+        if ($withFileCache) {
+            RepositoryFileCache::create([
+                'repository_id' => $report->repository_id,
+                'branch' => $report->branch,
+                'commit_sha' => $report->commit_sha,
+                'files' => [],
+                'cached_at' => now(),
+            ]);
+        }
+
+        return $report;
     }
 
     private function validCloverXml(): string

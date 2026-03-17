@@ -88,7 +88,41 @@ class FetchRepositoryFilesCommandTest extends TestCase
             '--latest' => true,
         ])
             ->assertFailed()
-            ->expectsOutput('Repository with ID 999 not found.');
+            ->expectsOutput("Repository '999' not found.");
+    }
+
+    public function test_resolves_repository_by_owner_name_slug(): void
+    {
+        $repository = Repository::factory()->create([
+            'owner' => 'my-org',
+            'name' => 'my-repo',
+        ]);
+
+        Http::fake([
+            '*/repos/*/git/trees/*' => Http::response([
+                'tree' => [
+                    ['type' => 'blob', 'path' => 'src/File.php'],
+                ],
+            ]),
+        ]);
+
+        $this->artisan('coverage:fetch-files', [
+            'repository' => 'my-org/my-repo',
+            'branch' => 'main',
+            'commit' => str_repeat('a', 40),
+        ])
+            ->assertSuccessful()
+            ->expectsOutput('Fetching files for my-org/my-repo...');
+    }
+
+    public function test_fails_when_owner_name_slug_not_found(): void
+    {
+        $this->artisan('coverage:fetch-files', [
+            'repository' => 'no-org/no-repo',
+            '--latest' => true,
+        ])
+            ->assertFailed()
+            ->expectsOutput("Repository 'no-org/no-repo' not found.");
     }
 
     public function test_fails_when_no_coverage_reports_exist_for_latest(): void
