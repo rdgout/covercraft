@@ -46,7 +46,7 @@ class CoverageFile extends Model
     protected function lineCoverage(): Attribute
     {
         return Attribute::make(
-            get: fn () => json_decode(gzuncompress($this->line_coverage_data), true),
+            get: fn () => json_decode(gzuncompress(base64_decode($this->line_coverage_data)), true),
         );
     }
 }

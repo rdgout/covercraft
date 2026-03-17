@@ -28,7 +28,7 @@ class CoverageFileFactory extends Factory
             'total_lines' => $totalLines,
             'covered_lines' => $coveredLines,
             'coverage_percentage' => $percentage,
-            'line_coverage_data' => gzcompress(json_encode([])),
+            'line_coverage_data' => base64_encode(gzcompress(json_encode([]))),
         ];
     }
 
@@ -53,7 +53,7 @@ class CoverageFileFactory extends Factory
             }
 
             return [
-                'line_coverage_data' => gzcompress(json_encode($lineData)),
+                'line_coverage_data' => base64_encode(gzcompress(json_encode($lineData))),
             ];
         });
     }

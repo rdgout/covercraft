@@ -35,7 +35,7 @@ class CoverageFileTest extends TestCase
         ];
 
         $file = CoverageFile::factory()->create([
-            'line_coverage_data' => gzcompress(json_encode($originalData)),
+            'line_coverage_data' => base64_encode(gzcompress(json_encode($originalData))),
         ]);
 
         $file->refresh();
@@ -47,7 +47,7 @@ class CoverageFileTest extends TestCase
     public function test_line_coverage_accessor_with_empty_data(): void
     {
         $file = CoverageFile::factory()->create([
-            'line_coverage_data' => gzcompress(json_encode([])),
+            'line_coverage_data' => base64_encode(gzcompress(json_encode([]))),
         ]);
 
         $file->refresh();
@@ -66,7 +66,7 @@ class CoverageFileTest extends TestCase
         }
 
         $file = CoverageFile::factory()->create([
-            'line_coverage_data' => gzcompress(json_encode($data)),
+            'line_coverage_data' => base64_encode(gzcompress(json_encode($data))),
         ]);
 
         $file->refresh();
