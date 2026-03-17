@@ -143,7 +143,7 @@ XML;
         (new ProcessCoverageJob($report->id))->handle(new CloverParser);
 
         $file = CoverageFile::where('coverage_report_id', $report->id)->first();
-        $decompressed = json_decode(gzuncompress($file->line_coverage_data), true);
+        $decompressed = json_decode(gzuncompress(base64_decode($file->line_coverage_data)), true);
 
         $this->assertIsArray($decompressed);
         $this->assertNotEmpty($decompressed);

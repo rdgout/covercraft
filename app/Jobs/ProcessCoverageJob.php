@@ -49,7 +49,7 @@ class ProcessCoverageJob implements ShouldQueue
                     'total_lines' => $fileData['total_lines'],
                     'covered_lines' => $fileData['covered_lines'],
                     'coverage_percentage' => $fileData['percentage'],
-                    'line_coverage_data' => gzcompress(json_encode($fileData['lines'])),
+                    'line_coverage_data' => base64_encode(gzcompress(json_encode($fileData['lines']))),
                 ]);
             }
         });
