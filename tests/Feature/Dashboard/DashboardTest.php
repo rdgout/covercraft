@@ -37,9 +37,10 @@ class DashboardTest extends TestCase
 
     public function test_index_shows_repositories(): void
     {
-        $repo = Repository::factory()->forTeam($this->team)->create(['owner' => 'acme', 'name' => 'app']);
+        $repo = Repository::factory()->forTeam($this->team)->create(['owner' => 'acme', 'name' => 'app', 'default_branch' => 'main']);
         CoverageReport::factory()->create([
             'repository_id' => $repo->id,
+            'branch' => 'main',
             'coverage_percentage' => 85.50,
         ]);
 
