@@ -187,6 +187,54 @@ class CoverageApiTest extends TestCase
         ]);
     }
 
+    public function test_submitting_new_coverage_archives_existing_reports_for_same_branch(): void
+    {
+        $existingReport = CoverageReport::factory()->create([
+            'repository_id' => $this->repository->id,
+            'branch' => 'main',
+            'archived' => false,
+        ]);
+
+        $this->withToken($this->apiToken)->postJson('/api/coverage', [
+            'repository' => 'acme/app',
+            'branch' => 'main',
+            'commit_sha' => str_repeat('b', 40),
+            'clover_file' => UploadedFile::fake()->create('clover.xml', 100),
+        ]);
+
+        $this->assertDatabaseHas('coverage_reports', [
+            'id' => $existingReport->id,
+            'archived' => true,
+        ]);
+
+        $this->assertDatabaseCount('coverage_reports', 2);
+        $this->assertDatabaseHas('coverage_reports', [
+            'branch' => 'main',
+            'archived' => false,
+        ]);
+    }
+
+    public function test_submitting_new_coverage_does_not_archive_reports_for_other_branches(): void
+    {
+        $otherBranchReport = CoverageReport::factory()->create([
+            'repository_id' => $this->repository->id,
+            'branch' => 'develop',
+            'archived' => false,
+        ]);
+
+        $this->withToken($this->apiToken)->postJson('/api/coverage', [
+            'repository' => 'acme/app',
+            'branch' => 'main',
+            'commit_sha' => str_repeat('b', 40),
+            'clover_file' => UploadedFile::fake()->create('clover.xml', 100),
+        ]);
+
+        $this->assertDatabaseHas('coverage_reports', [
+            'id' => $otherBranchReport->id,
+            'archived' => false,
+        ]);
+    }
+
     public function test_status_endpoint_returns_report_status(): void
     {
         $report = CoverageReport::factory()->create([

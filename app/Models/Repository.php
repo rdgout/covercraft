@@ -48,8 +48,13 @@ class Repository extends Model
     public function latestCoverageReport(): HasOne
     {
         return $this->hasOne(CoverageReport::class)
-            ->where('archived', false)
-            ->latest();
+            ->ofMany(
+                ['created_at' => 'max'],
+                fn (Builder $query) => $query
+                    ->join('repositories', 'repositories.id', '=', 'coverage_reports.repository_id')
+                    ->where('coverage_reports.archived', false)
+                    ->whereColumn('coverage_reports.branch', 'repositories.default_branch'),
+            );
     }
 
     public function fileCache(): HasMany

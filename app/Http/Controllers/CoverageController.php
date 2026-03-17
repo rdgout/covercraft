@@ -47,6 +47,12 @@ class CoverageController extends Controller
             config('coverage.storage_disk'),
         );
 
+        CoverageReport::query()
+            ->where('repository_id', $repository->id)
+            ->where('branch', $validated['branch'])
+            ->where('archived', false)
+            ->update(['archived' => true, 'archived_at' => now()]);
+
         $report = CoverageReport::create([
             'repository_id' => $repository->id,
             'branch' => $validated['branch'],
