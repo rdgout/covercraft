@@ -9,7 +9,7 @@ use Illuminate\Console\Command;
 class FetchRepositoryFilesCommand extends Command
 {
     protected $signature = 'coverage:fetch-files
-                            {repository : The repository ID}
+                            {repository : The repository ID or owner/name slug}
                             {branch? : The branch name}
                             {commit? : The commit SHA}
                             {--latest : Fetch files for the latest coverage report}';
@@ -23,11 +23,20 @@ class FetchRepositoryFilesCommand extends Command
 
     public function handle(): int
     {
-        $repositoryId = $this->argument('repository');
-        $repository = Repository::find($repositoryId);
+        $repositoryArgument = $this->argument('repository');
+
+        if (str_contains($repositoryArgument, '/')) {
+            [$owner, $name] = explode('/', $repositoryArgument, 2);
+            $repository = Repository::query()
+                ->where('owner', $owner)
+                ->where('name', $name)
+                ->first();
+        } else {
+            $repository = Repository::find($repositoryArgument);
+        }
 
         if (! $repository) {
-            $this->error("Repository with ID {$repositoryId} not found.");
+            $this->error("Repository '{$repositoryArgument}' not found.");
 
             return self::FAILURE;
         }
