@@ -2,6 +2,9 @@
 
 namespace App\Providers;
 
+use App\Contracts\GitHubServiceInterface;
+use App\Services\CachedGitHubService;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -11,7 +14,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->bind(GitHubServiceInterface::class, CachedGitHubService::class);
     }
 
     /**
@@ -19,6 +22,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        if (app()->isProduction()) {
+            URL::forceHttps();
+        }
     }
 }

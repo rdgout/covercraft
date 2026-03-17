@@ -11,7 +11,9 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16">
                 <div class="flex items-center space-x-8">
-                    <a href="{{ route('dashboard') }}" class="text-xl font-bold text-gray-900">Coverage Tracker</a>
+                    <a href="{{ route('dashboard') }}">
+                        <x-application-logo class="h-8 w-auto" />
+                    </a>
                     <a href="{{ route('dashboard') }}" class="text-gray-600 hover:text-gray-900">Dashboard</a>
                     @if(Route::has('repositories.index'))
                         <a href="{{ route('repositories.index') }}" class="text-gray-600 hover:text-gray-900">Repositories</a>

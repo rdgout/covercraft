@@ -2,8 +2,8 @@
 
 namespace App\Console\Commands;
 
+use App\Contracts\GitHubServiceInterface;
 use App\Models\Repository;
-use App\Services\GitHubService;
 use Illuminate\Console\Command;
 
 class FetchRepositoryFilesCommand extends Command
@@ -16,7 +16,7 @@ class FetchRepositoryFilesCommand extends Command
 
     protected $description = 'Fetch and cache repository files from GitHub';
 
-    public function __construct(private GitHubService $githubService)
+    public function __construct(private GitHubServiceInterface $githubService)
     {
         parent::__construct();
     }
