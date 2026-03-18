@@ -41,7 +41,10 @@ class DashboardController extends Controller
     {
         $branches = CoverageReport::current()
             ->where('repository_id', $repository->id)
-            ->get();
+            ->latest()
+            ->get()
+            ->sortBy(fn (CoverageReport $report) => $report->branch === $repository->default_branch ? 0 : 1)
+            ->values();
 
         $defaultBranchReport = $branches->firstWhere('branch', $repository->default_branch);
 
@@ -73,7 +76,7 @@ class DashboardController extends Controller
         $excludePatterns = config('coverage.exclude_patterns', []);
         $repositoryFiles = $this->fileTreeBuilder->applyExclusionPatterns($repositoryFiles, $excludePatterns);
 
-        $showOnlyCovered = $request->boolean('covered_only', false);
+        $showOnlyCovered = $request->boolean('covered_only', true);
         $fileTree = $this->fileTreeBuilder->build($report, $repositoryFiles, $showOnlyCovered);
 
         return view('dashboard.branch', compact('repository', 'report', 'defaultBranchReport', 'fileTree', 'showOnlyCovered'));
