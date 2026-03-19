@@ -3,6 +3,7 @@
 namespace Tests\Feature\Services;
 
 use App\Jobs\RefreshGitHubRepositoriesCacheJob;
+use App\Models\Repository;
 use App\Services\CachedGitHubService;
 use App\Services\GitHubService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -93,6 +94,52 @@ class GitHubServiceRepositoryCacheTest extends TestCase
         $this->service->listUserRepositories();
 
         Bus::assertNotDispatched(RefreshGitHubRepositoriesCacheJob::class);
+    }
+
+    public function test_fetch_file_contents_fetches_and_caches_on_miss(): void
+    {
+        $repo = Repository::factory()->create();
+
+        Http::fake([
+            '*' => Http::response(['content' => base64_encode('<?php echo "hello";')]),
+        ]);
+
+        $contents = $this->service->fetchFileContents($repo, 'abc123', 'src/Foo.php');
+
+        $this->assertEquals('<?php echo "hello";', $contents);
+        Http::assertSentCount(1);
+
+        $key = 'github_file_'.$repo->id.'_abc123_'.md5('src/Foo.php');
+        $this->assertEquals('<?php echo "hello";', Cache::get($key));
+    }
+
+    public function test_fetch_file_contents_returns_cached_data_on_hit(): void
+    {
+        $repo = Repository::factory()->create();
+
+        $key = 'github_file_'.$repo->id.'_abc123_'.md5('src/Foo.php');
+        Cache::put($key, '<?php echo "cached";', now()->addHours(CachedGitHubService::FILE_CONTENTS_CACHE_HOURS));
+
+        Http::fake();
+
+        $contents = $this->service->fetchFileContents($repo, 'abc123', 'src/Foo.php');
+
+        $this->assertEquals('<?php echo "cached";', $contents);
+        Http::assertNothingSent();
+    }
+
+    public function test_fetch_file_contents_caches_per_commit_sha(): void
+    {
+        $repo = Repository::factory()->create();
+
+        Http::fake([
+            '*' => Http::response(['content' => base64_encode('<?php echo "hello";')]),
+        ]);
+
+        $this->service->fetchFileContents($repo, 'sha1', 'src/Foo.php');
+        $this->service->fetchFileContents($repo, 'sha2', 'src/Foo.php');
+
+        Http::assertSentCount(2);
     }
 
     public function test_refresh_repositories_cache_updates_cache(): void

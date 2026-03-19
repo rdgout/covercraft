@@ -11,6 +11,8 @@ class CachedGitHubService implements GitHubServiceInterface
 {
     const REPOSITORY_CACHE_STALE_MINUTES = 15;
 
+    const FILE_CONTENTS_CACHE_HOURS = 6;
+
     public function __construct(private GitHubService $github) {}
 
     /**
@@ -72,7 +74,9 @@ class CachedGitHubService implements GitHubServiceInterface
 
     public function fetchFileContents(Repository $repository, string $commitSha, string $filePath): string
     {
-        return $this->github->fetchFileContents($repository, $commitSha, $filePath);
+        $key = 'github_file_'.$repository->id.'_'.$commitSha.'_'.md5($filePath);
+
+        return Cache::remember($key, now()->addHours(self::FILE_CONTENTS_CACHE_HOURS), fn () => $this->github->fetchFileContents($repository, $commitSha, $filePath));
     }
 
     private function repositoryCacheKey(): string

@@ -113,7 +113,7 @@ XML;
         $branchResponse->assertOk();
         $branchResponse->assertSee('Foo.php');
         $branchResponse->assertSee('Bar.php');
-        $branchResponse->assertSee('Baz.php');
+        $branchResponse->assertDontSee('Baz.php');
 
         $fileResponse = $this->get("/dashboard/{$repo->id}/main/file?path=src/Foo.php");
         $fileResponse->assertOk();

@@ -15,6 +15,16 @@
                     <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                         {{ __('Dashboard') }}
                     </x-nav-link>
+                    @if(Route::has('repositories.index'))
+                        <x-nav-link :href="route('repositories.index')" :active="request()->routeIs('repositories.*')">
+                            {{ __('Repositories') }}
+                        </x-nav-link>
+                    @endif
+                    @if(Route::has('tokens.index'))
+                        <x-nav-link :href="route('tokens.index')" :active="request()->routeIs('tokens.*')">
+                            {{ __('API Tokens') }}
+                        </x-nav-link>
+                    @endif
                 </div>
             </div>
 
@@ -70,6 +80,16 @@
             <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                 {{ __('Dashboard') }}
             </x-responsive-nav-link>
+            @if(Route::has('repositories.index'))
+                <x-responsive-nav-link :href="route('repositories.index')" :active="request()->routeIs('repositories.*')">
+                    {{ __('Repositories') }}
+                </x-responsive-nav-link>
+            @endif
+            @if(Route::has('tokens.index'))
+                <x-responsive-nav-link :href="route('tokens.index')" :active="request()->routeIs('tokens.*')">
+                    {{ __('API Tokens') }}
+                </x-responsive-nav-link>
+            @endif
         </div>
 
         <!-- Responsive Settings Options -->

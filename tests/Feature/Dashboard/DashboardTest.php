@@ -133,7 +133,7 @@ class DashboardTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('Foo.php');
-        $response->assertSee('Bar.php');
+        $response->assertDontSee('Bar.php');
     }
 
     public function test_branch_page_shows_comparison(): void
