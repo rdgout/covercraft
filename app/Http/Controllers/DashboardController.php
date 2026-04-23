@@ -32,21 +32,26 @@ class DashboardController extends Controller
             ->forTeams($teamIds)
             ->withCount('coverageReports')
             ->with('latestCoverageReport')
-            ->get();
+            ->latest()
+            ->orderByDesc('id')
+            ->cursorPaginate(15);
 
         return view('dashboard.index', compact('repositories', 'selectedTeamId'));
     }
 
     public function repository(ViewRepositoryRequest $request, Repository $repository): View
     {
+        $defaultBranchReport = CoverageReport::current()
+            ->where('repository_id', $repository->id)
+            ->where('branch', $repository->default_branch)
+            ->first();
+
         $branches = CoverageReport::current()
             ->where('repository_id', $repository->id)
+            ->where('branch', '!=', $repository->default_branch)
             ->latest()
-            ->get()
-            ->sortBy(fn (CoverageReport $report) => $report->branch === $repository->default_branch ? 0 : 1)
-            ->values();
-
-        $defaultBranchReport = $branches->firstWhere('branch', $repository->default_branch);
+            ->orderByDesc('id')
+            ->cursorPaginate(15);
 
         return view('dashboard.repository', compact('repository', 'branches', 'defaultBranchReport'));
     }

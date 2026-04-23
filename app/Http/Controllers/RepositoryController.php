@@ -26,7 +26,9 @@ class RepositoryController extends Controller
         $repositories = Repository::query()
             ->forTeams($teamIds)
             ->with('latestCoverageReport', 'team')
-            ->get();
+            ->latest()
+            ->orderByDesc('id')
+            ->cursorPaginate(15);
 
         return view('repositories.index', compact('repositories'));
     }
