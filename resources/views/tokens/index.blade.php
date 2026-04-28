@@ -3,7 +3,7 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="space-y-6">
                 <div class="flex justify-between items-center">
-                    <h1 class="text-2xl font-bold text-gray-900">API Tokens</h1>
+                    <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">API Tokens</h1>
                     <x-primary-button type="button" onclick="toggleCreateForm()">Create New Token</x-primary-button>
                 </div>
 
@@ -20,7 +20,7 @@
                                     <strong>Save this token now - it will not be shown again:</strong>
                                 </p>
                                 <div class="mt-2 flex items-center space-x-2">
-                                    <code id="token-value" class="block bg-white px-3 py-2 rounded border border-yellow-200 text-sm font-mono">{{ session('token') }}</code>
+                                    <code id="token-value" class="block bg-white dark:bg-gray-800 px-3 py-2 rounded border border-yellow-200 text-sm font-mono">{{ session('token') }}</code>
                                     <button onclick="copyToken()" class="px-3 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700 text-sm">
                                         Copy
                                     </button>
@@ -37,8 +37,8 @@
                 @endif
 
                 @if($teams->count() > 1)
-                    <div class="bg-white shadow rounded-lg p-4">
-                        <label for="team-select" class="block text-sm font-medium text-gray-700 mb-2">Filter by Team</label>
+                    <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-4">
+                        <label for="team-select" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Filter by Team</label>
                         <select id="team-select" onchange="window.location.href = this.value" class="block w-full md:w-auto rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                             <option value="{{ route('tokens.index') }}" {{ !$selectedTeamId ? 'selected' : '' }}>All Teams</option>
                             @foreach($teams as $team)
@@ -50,11 +50,11 @@
                     </div>
                 @endif
 
-                <div id="create-form" class="hidden bg-white shadow rounded-lg p-6">
+                <div id="create-form" class="hidden bg-white dark:bg-gray-800 shadow rounded-lg p-6">
                     <form action="{{ route('tokens.store') }}" method="POST" class="space-y-4">
                         @csrf
                         <div>
-                            <label for="team_id" class="block text-sm font-medium text-gray-700">Team</label>
+                            <label for="team_id" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Team</label>
                             <select name="team_id" id="team_id" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                                 <option value="">Select a team</option>
                                 @foreach($teams as $team)
@@ -69,7 +69,7 @@
                         </div>
 
                         <div>
-                            <label for="name" class="block text-sm font-medium text-gray-700">Token Name</label>
+                            <label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Token Name</label>
                             <input type="text" name="name" id="name" required placeholder="e.g., CI/CD Pipeline" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                             @error('name')
                                 <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
@@ -84,42 +84,42 @@
                 </div>
 
                 @if($tokens->isEmpty())
-                    <div class="bg-white rounded-lg shadow p-6 text-center text-gray-500">
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 text-center text-gray-500 dark:text-gray-400">
                         No tokens created yet. Create your first token to get started.
                     </div>
                 @else
-                    <div class="bg-white rounded-lg shadow overflow-hidden">
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-gray-50">
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+                        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                            <thead class="bg-gray-50 dark:bg-gray-700">
                                 <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Name</th>
                                     @if($teams->count() > 1)
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Team</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Team</th>
                                     @endif
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created By</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Used</th>
-                                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Created By</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Created</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Last Used</th>
+                                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody class="bg-white divide-y divide-gray-200">
+                            <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                                 @foreach($tokens as $token)
                                     <tr>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
                                             {{ $token->name }}
                                         </td>
                                         @if($teams->count() > 1)
-                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                                                 {{ $token->team->name }}
                                             </td>
                                         @endif
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                                             {{ $token->createdBy?->name ?? 'N/A' }}
                                         </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                                             {{ $token->created_at->format('M d, Y') }}
                                         </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                                             {{ $token->last_used_at ? $token->last_used_at->diffForHumans() : 'Never' }}
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">

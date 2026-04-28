@@ -5,9 +5,9 @@
                 <a href="{{ route('dashboard.repository', $repository) }}" class="text-blue-600 hover:underline text-sm">&larr; {{ $repository->owner }}/{{ $repository->name }}</a>
                 <div class="flex items-center justify-between mt-2">
                     <div>
-                        <h1 class="text-2xl font-bold text-gray-900">{{ $report->branch }}</h1>
+                        <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">{{ $report->branch }}</h1>
                         <div class="flex items-center space-x-4 mt-1">
-                            <span class="text-sm text-gray-500">Commit: <code class="font-mono">{{ substr($report->commit_sha, 0, 8) }}</code></span>
+                            <span class="text-sm text-gray-500 dark:text-gray-400">Commit: <code class="font-mono">{{ substr($report->commit_sha, 0, 8) }}</code></span>
                             @if($report->coverage_percentage !== null)
                                 @php $pct = $report->coverage_percentage; @endphp
                                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $pct >= 80 ? 'bg-green-100 text-green-800' : ($pct >= 50 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800') }}">
@@ -23,24 +23,24 @@
                         </div>
                     </div>
                     <div class="flex items-center space-x-2">
-                        <span class="text-sm text-gray-700">Show:</span>
+                        <span class="text-sm text-gray-700 dark:text-gray-300">Show:</span>
                         <a href="{{ route('dashboard.branch', [$repository, $report->branch, 'covered_only' => 1]) }}"
-                           class="px-3 py-1.5 text-sm rounded {{ $showOnlyCovered ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300' }}">
+                           class="px-3 py-1.5 text-sm rounded {{ $showOnlyCovered ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600' }}">
                             Covered Only
                         </a>
                         <a href="{{ route('dashboard.branch', [$repository, $report->branch]) }}"
-                           class="px-3 py-1.5 text-sm rounded {{ !$showOnlyCovered ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300' }}">
+                           class="px-3 py-1.5 text-sm rounded {{ !$showOnlyCovered ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600' }}">
                             All Files
                         </a>
                     </div>
                 </div>
             </div>
 
-            <div class="bg-white rounded-lg shadow overflow-hidden">
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
                 @if(empty($fileTree))
-                    <div class="p-6 text-center text-gray-500">No file tree data available. Push to this branch to populate the file cache.</div>
+                    <div class="p-6 text-center text-gray-500 dark:text-gray-400">No file tree data available. Push to this branch to populate the file cache.</div>
                 @else
-                    <div class="divide-y divide-gray-100">
+                    <div class="divide-y divide-gray-100 dark:divide-gray-700">
                         @include('dashboard.partials.tree', ['tree' => $fileTree, 'depth' => 0])
                     </div>
                 @endif

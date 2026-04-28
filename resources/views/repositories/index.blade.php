@@ -2,7 +2,7 @@
     <div class="py-8">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center mb-6">
-                <h1 class="text-2xl font-bold text-gray-900">Repositories</h1>
+                <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">Repositories</h1>
                 <a href="{{ route('repositories.create') }}" class="inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-lg font-medium text-sm text-white hover:bg-blue-700 transition ease-in-out duration-150">Add Repository</a>
             </div>
 
@@ -13,21 +13,21 @@
             @endif
 
             @if($repositories->isEmpty())
-                <div class="bg-white rounded-lg shadow p-6 text-center text-gray-500">
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 text-center text-gray-500 dark:text-gray-400">
                     No repositories linked yet.
                 </div>
             @else
-                <div class="bg-white rounded-lg shadow overflow-hidden">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+                    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                        <thead class="bg-gray-50 dark:bg-gray-700">
                             <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Repository</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Default Branch</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Coverage</th>
-                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Repository</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Default Branch</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Coverage</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Actions</th>
                             </tr>
                         </thead>
-                        <tbody class="bg-white divide-y divide-gray-200">
+                        <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                             @foreach($repositories as $repository)
                                 <tr>
                                     <td class="px-6 py-4">
@@ -35,7 +35,7 @@
                                             {{ $repository->owner }}/{{ $repository->name }}
                                         </a>
                                     </td>
-                                    <td class="px-6 py-4 text-sm text-gray-500">{{ $repository->default_branch }}</td>
+                                    <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">{{ $repository->default_branch }}</td>
                                     <td class="px-6 py-4">
                                         @if($repository->latestCoverageReport)
                                             @php $pct = $repository->latestCoverageReport->coverage_percentage; @endphp
@@ -43,7 +43,7 @@
                                                 {{ $pct }}%
                                             </span>
                                         @else
-                                            <span class="text-gray-400 text-sm">No data</span>
+                                            <span class="text-gray-400 dark:text-gray-500 text-sm">No data</span>
                                         @endif
                                     </td>
                                     <td class="px-6 py-4 text-right space-x-2">
