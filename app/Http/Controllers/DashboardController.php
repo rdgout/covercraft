@@ -51,7 +51,7 @@ class DashboardController extends Controller
             ->where('branch', '!=', $repository->default_branch)
             ->latest()
             ->orderByDesc('id')
-            ->cursorPaginate(15);
+            ->cursorPaginate(20);
 
         return view('dashboard.repository', compact('repository', 'branches', 'defaultBranchReport'));
     }
