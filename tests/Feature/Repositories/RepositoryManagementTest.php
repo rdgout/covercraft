@@ -43,6 +43,32 @@ class RepositoryManagementTest extends TestCase
         $response->assertSee('acme/app');
     }
 
+    public function test_index_paginates_repositories(): void
+    {
+        Repository::factory()->forTeam($this->team)->count(20)->create();
+
+        $response = $this->get('/repositories');
+
+        $response->assertOk();
+        $response->assertViewHas('repositories', fn ($paginator) => $paginator->count() === 15 && $paginator->hasMorePages());
+    }
+
+    public function test_index_cursor_next_page_works(): void
+    {
+        Repository::factory()->forTeam($this->team)->count(20)->create();
+
+        $first = $this->get('/repositories');
+        $first->assertOk();
+
+        $paginator = $first->viewData('repositories');
+        $cursor = $paginator->nextCursor()->encode();
+        $this->assertNotNull($cursor);
+
+        $second = $this->get('/repositories?cursor='.$cursor);
+        $second->assertOk();
+        $second->assertViewHas('repositories', fn ($p) => $p->count() === 5);
+    }
+
     public function test_create_page_renders(): void
     {
         Http::fake([

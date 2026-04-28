@@ -211,6 +211,74 @@ class DashboardTest extends TestCase
         $response->assertNotFound();
     }
 
+    public function test_index_paginates_repositories(): void
+    {
+        Repository::factory()->forTeam($this->team)->count(20)->create();
+
+        $response = $this->get('/dashboard');
+
+        $response->assertOk();
+        $response->assertViewHas('repositories', fn ($paginator) => $paginator->count() === 15 && $paginator->hasMorePages());
+    }
+
+    public function test_index_cursor_next_page_works(): void
+    {
+        Repository::factory()->forTeam($this->team)->count(20)->create();
+
+        $first = $this->get('/dashboard');
+        $first->assertOk();
+
+        $paginator = $first->viewData('repositories');
+        $cursor = $paginator->nextCursor()->encode();
+        $this->assertNotNull($cursor);
+
+        $second = $this->get('/dashboard?cursor='.$cursor);
+        $second->assertOk();
+        $second->assertViewHas('repositories', fn ($p) => $p->count() === 5);
+    }
+
+    public function test_repository_page_default_branch_is_pinned_first(): void
+    {
+        $repo = Repository::factory()->forTeam($this->team)->create(['default_branch' => 'main']);
+        CoverageReport::factory()->create(['repository_id' => $repo->id, 'branch' => 'main']);
+        CoverageReport::factory()->create(['repository_id' => $repo->id, 'branch' => 'feature/xyz']);
+
+        $response = $this->get("/dashboard/{$repo->id}");
+
+        $response->assertOk();
+        $response->assertViewHas('defaultBranchReport', fn ($r) => $r->branch === 'main');
+        $response->assertViewHas('branches', fn ($p) => $p->count() === 1 && $p->first()->branch === 'feature/xyz');
+    }
+
+    public function test_repository_page_paginates_branches(): void
+    {
+        $repo = Repository::factory()->forTeam($this->team)->create(['default_branch' => 'main']);
+        CoverageReport::factory()->create(['repository_id' => $repo->id, 'branch' => 'main']);
+        CoverageReport::factory()->count(25)->create(['repository_id' => $repo->id, 'branch' => 'feature/other']);
+
+        $response = $this->get("/dashboard/{$repo->id}");
+
+        $response->assertOk();
+        $response->assertViewHas('branches', fn ($paginator) => $paginator->count() === 20 && $paginator->hasMorePages());
+    }
+
+    public function test_repository_cursor_next_page_works(): void
+    {
+        $repo = Repository::factory()->forTeam($this->team)->create(['default_branch' => 'main']);
+        CoverageReport::factory()->count(25)->create(['repository_id' => $repo->id, 'branch' => 'feature/other']);
+
+        $first = $this->get("/dashboard/{$repo->id}");
+        $first->assertOk();
+
+        $paginator = $first->viewData('branches');
+        $cursor = $paginator->nextCursor()->encode();
+        $this->assertNotNull($cursor);
+
+        $second = $this->get("/dashboard/{$repo->id}?cursor={$cursor}");
+        $second->assertOk();
+        $second->assertViewHas('branches', fn ($p) => $p->count() === 5);
+    }
+
     public function test_branch_with_slashes_in_name(): void
     {
         $repo = Repository::factory()->forTeam($this->team)->create();

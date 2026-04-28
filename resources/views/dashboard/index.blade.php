@@ -49,6 +49,7 @@
                             @endforeach
                         </tbody>
                     </table>
+                    <x-cursor-pagination :paginator="$repositories" />
                 </div>
             @endif
         </div>

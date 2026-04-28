@@ -7,7 +7,7 @@
                 <p class="text-sm text-gray-500">Default branch: {{ $repository->default_branch }}</p>
             </div>
 
-            @if($branches->isEmpty())
+            @if(! $defaultBranchReport && $branches->isEmpty())
                 <div class="bg-white rounded-lg shadow p-6 text-center text-gray-500">
                     No coverage reports yet.
                 </div>
@@ -25,21 +25,45 @@
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
+                            @if($defaultBranchReport)
+                                <tr>
+                                    <td class="px-6 py-4">
+                                        <a href="{{ route('dashboard.branch', [$repository, $defaultBranchReport->branch]) }}" class="text-blue-600 hover:underline font-medium">
+                                            {{ $defaultBranchReport->branch }}
+                                        </a>
+                                        <span class="ml-1 text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">default</span>
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        @if($defaultBranchReport->coverage_percentage !== null)
+                                            @php $pct = $defaultBranchReport->coverage_percentage; @endphp
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $pct >= 80 ? 'bg-green-100 text-green-800' : ($pct >= 50 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800') }}">
+                                                {{ $pct }}%
+                                            </span>
+                                        @else
+                                            <span class="text-gray-400 text-sm">-</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-6 py-4 text-sm"><span class="text-gray-400">-</span></td>
+                                    <td class="px-6 py-4 text-sm text-gray-500 font-mono">{{ substr($defaultBranchReport->commit_sha, 0, 8) }}</td>
+                                    <td class="px-6 py-4">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $defaultBranchReport->status === 'completed' ? 'bg-green-100 text-green-800' : ($defaultBranchReport->status === 'failed' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800') }}">
+                                            {{ $defaultBranchReport->status }}
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 text-sm text-gray-500">{{ $defaultBranchReport->created_at->diffForHumans() }}</td>
+                                </tr>
+                            @endif
                             @foreach($branches as $report)
                                 @php
-                                    $diff = null;
-                                    if ($defaultBranchReport && $report->branch !== $repository->default_branch && $report->coverage_percentage !== null) {
-                                        $diff = round($report->coverage_percentage - $defaultBranchReport->coverage_percentage, 2);
-                                    }
+                                    $diff = $defaultBranchReport && $report->coverage_percentage !== null
+                                        ? round($report->coverage_percentage - $defaultBranchReport->coverage_percentage, 2)
+                                        : null;
                                 @endphp
                                 <tr>
                                     <td class="px-6 py-4">
                                         <a href="{{ route('dashboard.branch', [$repository, $report->branch]) }}" class="text-blue-600 hover:underline font-medium">
                                             {{ $report->branch }}
                                         </a>
-                                        @if($report->branch === $repository->default_branch)
-                                            <span class="ml-1 text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">default</span>
-                                        @endif
                                     </td>
                                     <td class="px-6 py-4">
                                         @if($report->coverage_percentage !== null)
@@ -71,6 +95,7 @@
                             @endforeach
                         </tbody>
                     </table>
+                    <x-cursor-pagination :paginator="$branches" />
                 </div>
             @endif
         </div>
