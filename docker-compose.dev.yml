@@ -4,8 +4,6 @@ services:
       context: .
       target: app
     image: covercraft:latest
-    volumes:
-      - ./public/build:/app/public/build
 
   horizon:
     image: covercraft:latest
@@ -15,8 +13,8 @@ services:
 
   postgres:
     ports:
-      - "${DB_PORT_FORWARD:-5432}:5432"
+      - '${DB_PORT_FORWARD:-5432}:5432'
 
   redis:
     ports:
-      - "6380:6379"
+      - '6380:6379'

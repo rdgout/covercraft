@@ -1,37 +1,64 @@
 <x-app-layout>
-    <div class="py-8">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="mb-6">
-                <a href="{{ route('repositories.index') }}" class="text-blue-600 hover:underline text-sm">&larr; Back</a>
-                <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-2">Edit {{ $repository->owner }}/{{ $repository->name }}</h1>
-            </div>
-
-            <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 max-w-lg">
-                <form action="{{ route('repositories.update', $repository) }}" method="POST">
-                    @csrf
-                    @method('PUT')
-
-                    <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Repository</label>
-                        <p class="text-gray-600 dark:text-gray-400">{{ $repository->owner }}/{{ $repository->name }}</p>
-                    </div>
-
-                    <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Webhook Secret</label>
-                        <code class="text-sm bg-gray-100 dark:bg-gray-700 dark:text-gray-300 px-2 py-1 rounded">{{ $repository->webhook_secret ?? 'Not set' }}</code>
-                    </div>
-
-                    <div class="mb-6">
-                        <label for="default_branch" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Default Branch</label>
-                        <input type="text" name="default_branch" id="default_branch" value="{{ old('default_branch', $repository->default_branch) }}" class="w-full border-gray-300 rounded-lg shadow-sm">
-                        @error('default_branch')
-                            <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
-                        @enderror
-                    </div>
-
+    <header class="space-y-3">
+        <a
+            href="{{ route('repositories.index') }}"
+            class="cc-link text-sm"
+        >← Repositories</a>
+        <h1 class="cc-page-title">Repository settings</h1>
+        <p class="cc-muted">{{ $repository->owner }}/{{ $repository->name }}</p>
+    </header>
+    <div class="cc-two-columns">
+        <section class="cc-panel">
+            <h2 class="cc-card-title mb-5">Coverage settings</h2>
+            <form
+                action="{{ route('repositories.update', $repository) }}"
+                method="POST"
+                class="space-y-5"
+            >
+                @csrf
+                @method('PUT')
+                <div class="cc-field">
+                    <x-input-label
+                        for="default_branch"
+                        value="Default branch"
+                    />
+                    <x-text-input
+                        name="default_branch"
+                        id="default_branch"
+                        :value="old('default_branch', $repository->default_branch)"
+                        required
+                    />
+                    <p class="cc-hint">The baseline used to compare your branches.</p>
+                    <x-input-error :messages="$errors->get('default_branch')" />
+                </div>
+                <div class="flex gap-3">
                     <x-primary-button>Update</x-primary-button>
-                </form>
+                    <a
+                        href="{{ route('dashboard.repository', $repository) }}"
+                        class="cc-btn cc-btn--secondary"
+                    >View coverage</a>
+                </div>
+            </form>
+        </section>
+        <section class="cc-panel space-y-4">
+            <h2 class="cc-card-title">GitHub connection</h2>
+            <a
+                href="{{ $repository->github_url }}"
+                class="cc-link inline-flex items-center gap-2"
+                target="_blank"
+                rel="noopener noreferrer"
+            >{{ $repository->owner }}/{{ $repository->name }}<x-icon name="external" />
+            </a>
+            <div class="cc-field">
+                <span class="cc-label">Webhook secret</span>
+                <div class="flex items-center gap-2">
+                    <code class="cc-inline-code flex-1">{{ $repository->webhook_secret ?? 'Not set' }}</code>
+                    @if ($repository->webhook_secret)
+                        <x-copy-button :value="$repository->webhook_secret" />
+                    @endif
+                </div>
+                <p class="cc-hint">Use this secret to verify GitHub webhook deliveries.</p>
             </div>
-        </div>
+        </section>
     </div>
 </x-app-layout>

@@ -1,111 +1,161 @@
 <x-app-layout>
-    <div class="py-8">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="mb-6">
-                <a href="{{ route('repositories.index') }}" class="text-blue-600 hover:underline text-sm">&larr; Back</a>
-                <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-2">Add Repository</h1>
-            </div>
-
-            <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 max-w-lg">
-                <form action="{{ route('repositories.store') }}" method="POST" id="repo-form">
-                    @csrf
-
-                    <div class="mb-4">
-                        <label for="team_id" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Team <span class="text-red-600">*</span></label>
-                        <select name="team_id" id="team_id" required class="w-full border-gray-300 rounded-lg shadow-sm">
-                            <option value="">Select a team...</option>
-                            @foreach($teams as $team)
-                                <option value="{{ $team->id }}" {{ old('team_id') == $team->id ? 'selected' : '' }}>
-                                    {{ $team->name }}
-                                </option>
+    <header class="space-y-3">
+        <a
+            href="{{ route('repositories.index') }}"
+            class="cc-link text-sm"
+        >← Repositories</a>
+        <h1 class="cc-page-title">Add repository</h1>
+        <p class="cc-muted">Connect your project and make every line count.</p>
+    </header>
+    <div class="cc-two-columns">
+        <section class="cc-panel">
+            <form
+                action="{{ route('repositories.store') }}"
+                method="POST"
+                class="space-y-5"
+                x-data="repositoryForm(@js(['owner' => old('owner', ''), 'name' => old('name', ''), 'branch' => old('default_branch', 'main')]), @js(route('repositories.branches')))"
+            >
+                @csrf
+                <div class="cc-field">
+                    <x-input-label
+                        for="team_id"
+                        value="Team"
+                    />
+                    <select
+                        name="team_id"
+                        id="team_id"
+                        class="cc-input"
+                        required
+                    >
+                        <option value="">Select a team…</option>
+                        @foreach ($teams as $team)
+                            <option
+                                value="{{ $team->id }}"
+                                @selected(old('team_id', $teams->count() === 1 ? $teams->first()->id : null) == $team->id)
+                            >{{ $team->name }}</option>
+                        @endforeach
+                    </select>
+                    <x-input-error :messages="$errors->get('team_id')" />
+                </div>
+                @if (count($githubRepos))
+                    <div class="cc-field">
+                        <x-input-label
+                            for="github_repo"
+                            value="Choose from GitHub"
+                        />
+                        <select
+                            id="github_repo"
+                            class="cc-input"
+                            @change="select($event.target.value)"
+                        >
+                            <option value="">Enter details manually</option>
+                            @foreach ($githubRepos as $repo)
+                                <option
+                                    value="{{ json_encode(['owner' => $repo['owner'], 'name' => $repo['name'], 'branch' => $repo['default_branch']]) }}"
+                                    @selected(old('owner') === $repo['owner'] && old('name') === $repo['name'])
+                                >{{ $repo['full_name'] }}</option>
                             @endforeach
                         </select>
-                        @error('team_id')
-                            <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
-                        @enderror
+                    </div>
+                @else
+                    <div class="cc-callout cc-callout--info">
+                        <x-icon name="repo" />
+                        <p>No GitHub token configured. Enter details manually.</p>
                     </div>
 
-                    <div class="mb-4">
-                        <label for="github_repo" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">GitHub Repository</label>
-                        @if(count($githubRepos) > 0)
-                            <select id="github_repo" class="w-full border-gray-300 rounded-lg shadow-sm" onchange="onRepoSelect(this)">
-                                <option value="">Select a repository...</option>
-                                @foreach($githubRepos as $repo)
-                                    <option value="{{ $repo['owner'] }}|{{ $repo['name'] }}|{{ $repo['default_branch'] }}">
-                                        {{ $repo['full_name'] }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        @else
-                            <p class="text-sm text-gray-500 dark:text-gray-400 mb-2">No GitHub token configured. Enter details manually.</p>
-                        @endif
-                    </div>
-
-                    <input type="hidden" name="owner" id="owner" value="{{ old('owner') }}">
-                    <input type="hidden" name="name" id="name" value="{{ old('name') }}">
-
-                    <div class="mb-4">
-                        <label for="owner_display" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Owner</label>
-                        <input type="text" id="owner_display" value="{{ old('owner') }}" class="w-full border-gray-300 rounded-lg shadow-sm" oninput="document.getElementById('owner').value=this.value" {{ count($githubRepos) > 0 ? 'readonly' : '' }}>
-                        @error('owner')
-                            <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
-                        @enderror
-                    </div>
-
-                    <div class="mb-4">
-                        <label for="name_display" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>
-                        <input type="text" id="name_display" value="{{ old('name') }}" class="w-full border-gray-300 rounded-lg shadow-sm" oninput="document.getElementById('name').value=this.value" {{ count($githubRepos) > 0 ? 'readonly' : '' }}>
-                        @error('name')
-                            <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
-                        @enderror
-                    </div>
-
-                    <div class="mb-6">
-                        <label for="default_branch" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Default Branch</label>
-                        <select name="default_branch" id="default_branch" class="w-full border-gray-300 rounded-lg shadow-sm">
-                            <option value="main" {{ old('default_branch', 'main') === 'main' ? 'selected' : '' }}>main</option>
-                        </select>
-                        @error('default_branch')
-                            <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
-                        @enderror
-                    </div>
-
+                @endif
+                <div class="cc-field">
+                    <x-input-label
+                        for="owner"
+                        value="Owner or organization"
+                    />
+                    <x-text-input
+                        id="owner"
+                        name="owner"
+                        x-model="owner"
+                        placeholder="e.g. acme"
+                        required
+                    />
+                    <x-input-error :messages="$errors->get('owner')" />
+                </div>
+                <div class="cc-field">
+                    <x-input-label
+                        for="name"
+                        value="Repository name"
+                    />
+                    <x-text-input
+                        id="name"
+                        name="name"
+                        x-model="name"
+                        placeholder="e.g. storefront"
+                        required
+                    />
+                    <x-input-error :messages="$errors->get('name')" />
+                </div>
+                <div class="cc-field">
+                    <x-input-label
+                        for="default_branch"
+                        value="Default branch"
+                    />
+                    <x-text-input
+                        id="default_branch"
+                        name="default_branch"
+                        x-model="branch"
+                        list="repository-branches"
+                        required
+                    />
+                    <datalist id="repository-branches">
+                        <template
+                            x-for="item in branches"
+                            :key="item"
+                        >
+                            <option :value="item">
+                            </option>
+                        </template>
+                    </datalist>
+                    <p
+                        class="cc-hint"
+                        x-show="loading"
+                        x-cloak
+                        role="status"
+                    >Loading branches…</p>
+                    <p
+                        class="cc-hint"
+                        x-show="error"
+                        x-text="error"
+                        x-cloak
+                        role="status"
+                    >
+                    </p>
+                    <p class="cc-hint">Other branches are compared with this branch.</p>
+                    <x-input-error :messages="$errors->get('default_branch')" />
+                </div>
+                <div
+                    class="flex gap-3 border-t pt-5"
+                    style="border-color: var(--border)"
+                >
                     <x-primary-button>Add Repository</x-primary-button>
-                </form>
+                    <a
+                        href="{{ route('repositories.index') }}"
+                        class="cc-btn cc-btn--secondary"
+                    >Cancel</a>
+                </div>
+            </form>
+        </section>
+        <aside class="space-y-4">
+            <div class="cc-panel space-y-3">
+                <span class="cc-empty-icon">
+                    <x-icon name="branch" />
+                </span>
+                <h2 class="cc-card-title">A home for your coverage</h2>
+                <p class="cc-muted text-sm">Upload Clover reports from your CI pipeline, compare branches, and explore
+                    coverage down to each line.</p>
+                <p class="cc-muted text-sm">Repositories belong to a team. Anyone in that team can see its reports.</p>
             </div>
-
-            <script>
-                function onRepoSelect(select) {
-                    const parts = select.value.split('|');
-                    if (parts.length === 3) {
-                        document.getElementById('owner').value = parts[0];
-                        document.getElementById('owner_display').value = parts[0];
-                        document.getElementById('name').value = parts[1];
-                        document.getElementById('name_display').value = parts[1];
-
-                        fetch('{{ route("repositories.branches") }}', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                            },
-                            body: JSON.stringify({ owner: parts[0], name: parts[1] }),
-                        })
-                        .then(r => r.json())
-                        .then(data => {
-                            const branchSelect = document.getElementById('default_branch');
-                            branchSelect.innerHTML = '';
-                            (data.branches || []).forEach(b => {
-                                const opt = document.createElement('option');
-                                opt.value = b;
-                                opt.textContent = b;
-                                if (b === parts[2]) opt.selected = true;
-                                branchSelect.appendChild(opt);
-                            });
-                        });
-                    }
-                }
-            </script>
-        </div>
+            <div class="cc-callout cc-callout--info">
+                <x-icon name="key" />
+                <p>Create an API token after connecting your repository to authenticate uploads from CI.</p>
+            </div>
+        </aside>
     </div>
 </x-app-layout>

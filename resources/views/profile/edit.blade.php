@@ -1,28 +1,27 @@
 <x-app-layout>
-    <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
-            {{ __('Profile') }}
-        </h2>
-    </x-slot>
-
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
-            <div class="p-4 sm:p-8 bg-white dark:bg-gray-800 shadow sm:rounded-lg">
-                <div class="max-w-xl">
-                    @include('profile.partials.update-profile-information-form')
-                </div>
+    <header>
+        <h1 class="cc-page-title">Profile & settings</h1>
+        <p class="cc-muted mt-1">Your account, just the way you like it.</p>
+    </header>
+    <div class="cc-two-columns">
+        <div class="space-y-6">
+            <div class="cc-panel">@include('profile.partials.update-profile-information-form')
             </div>
-
-            <div class="p-4 sm:p-8 bg-white dark:bg-gray-800 shadow sm:rounded-lg">
-                <div class="max-w-xl">
-                    @include('profile.partials.update-password-form')
-                </div>
+            <div class="cc-panel">@include('profile.partials.update-password-form')
             </div>
-
-            <div class="p-4 sm:p-8 bg-white dark:bg-gray-800 shadow sm:rounded-lg">
-                <div class="max-w-xl">
-                    @include('profile.partials.delete-user-form')
-                </div>
+        </div>
+        <div class="space-y-6">
+            <section class="cc-panel space-y-4">
+                <h2 class="cc-card-title">Appearance</h2>
+                <p class="cc-muted text-sm">Choose a lighter canvas or a darker view for your coverage.</p>
+                <button
+                    type="button"
+                    class="cc-btn cc-btn--secondary"
+                    data-theme-toggle
+                >
+                    <x-icon name="theme" />Toggle color theme</button>
+            </section>
+            <div class="cc-panel">@include('profile.partials.delete-user-form')
             </div>
         </div>
     </div>

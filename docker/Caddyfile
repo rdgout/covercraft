@@ -1,0 +1,14 @@
+{
+    frankenphp
+}
+
+:8000 {
+    root * /app/public
+    encode zstd gzip
+    @immutable path /build/*
+    header @immutable Cache-Control "public, max-age=31536000, immutable"
+    @health path /up
+    log_skip @health
+    log
+    php_server
+}

@@ -1,20 +1,39 @@
 #!/bin/sh
+set -eu
 
-set -e
+APP_KEY_FILE="${APP_KEY_FILE:-/app/storage/app/app_key}"
 
-# Only run migrations and cache warming for the main app process
-if echo "$1" | grep -q "frankenphp"; then
-    echo "[entrypoint] Running migrations..."
+log() {
+    echo "[entrypoint] $*"
+}
+
+if [ -z "${APP_KEY:-}" ]; then
+    if [ -f "$APP_KEY_FILE" ]; then
+        APP_KEY="$(cat "$APP_KEY_FILE")"
+        log "Loaded the persisted application key."
+    elif [ "${1:-}" = "frankenphp" ]; then
+        APP_KEY="$(php artisan key:generate --show --no-interaction)"
+        mkdir -p "$(dirname "$APP_KEY_FILE")"
+        (umask 077 && printf '%s' "$APP_KEY" > "$APP_KEY_FILE")
+        log "Generated and persisted the application key."
+    else
+        log "APP_KEY is missing. Start the app container first or provide APP_KEY."
+        exit 1
+    fi
+    export APP_KEY
+fi
+
+log "Caching configuration and routes..."
+php artisan config:cache --no-interaction
+php artisan route:cache --no-interaction
+
+if [ "${1:-}" = "frankenphp" ] && [ "${RUN_MIGRATIONS:-true}" != "false" ]; then
+    log "Running database migrations..."
     php artisan migrate --force --no-interaction
+fi
 
-    echo "[entrypoint] Linking storage..."
-    php artisan storage:link --force
-
-    echo "[entrypoint] Caching config, routes, views, and events..."
-    php artisan config:cache
-    php artisan route:cache
-    php artisan view:cache
-    php artisan event:cache
+if command -v docker-entrypoint.sh >/dev/null 2>&1; then
+    exec docker-entrypoint.sh "$@"
 fi
 
 exec "$@"

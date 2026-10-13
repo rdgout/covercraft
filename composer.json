@@ -9,10 +9,10 @@
     ],
     "license": "MIT",
     "require": {
-        "php": "^8.2",
-        "laravel/framework": "^12.0",
+        "php": "^8.5",
+        "laravel/framework": "^13.0",
         "laravel/horizon": "^5.45",
-        "laravel/tinker": "^2.10.1",
+        "laravel/tinker": "^3.0",
         "ext-zlib": "*"
     },
     "require-dev": {
@@ -24,7 +24,7 @@
         "laravel/sail": "^1.41",
         "mockery/mockery": "^1.6",
         "nunomaduro/collision": "^8.6",
-        "phpunit/phpunit": "^11.5.3"
+        "phpunit/phpunit": "^13.0"
     },
     "autoload": {
         "psr-4": {
@@ -73,6 +73,12 @@
         ],
         "pre-package-uninstall": [
             "Illuminate\\Foundation\\ComposerScripts::prePackageUninstall"
+        ],
+        "lint": [
+            "pint"
+        ],
+        "lint:check": [
+            "pint --test"
         ]
     },
     "extra": {

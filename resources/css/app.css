@@ -1,3 +1,219 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+@import './fonts.css';
+@import './design.css' layer(components);
+
+@source '../views';
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@plugin '@tailwindcss/forms';
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
+@theme {
+    --font-sans: 'Figtree', ui-sans-serif, system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+@layer base {
+    body {
+        background: var(--canvas);
+        color: var(--ink);
+        font-family: var(--font-sans);
+        font-size: 15px;
+        line-height: 1.5;
+    }
+    h1,
+    h2,
+    h3 {
+        font-family: var(--font-display);
+        font-weight: 700;
+    }
+    a,
+    button,
+    input,
+    select,
+    summary {
+        -webkit-tap-highlight-color: transparent;
+    }
+    :focus-visible {
+        outline: 2px solid var(--focus);
+        outline-offset: 3px;
+    }
+    input[type='checkbox'] {
+        color: var(--link);
+        background: var(--surface);
+        border-color: var(--border-strong);
+        border-radius: 4px;
+    }
+    code {
+        font-family: var(--font-mono);
+    }
+    [x-cloak] {
+        display: none !important;
+    }
+}
+
+@layer components {
+    .cc-main {
+        @apply mx-auto flex w-full max-w-[1200px] flex-col gap-8 px-4 py-8 sm:px-8 sm:pb-16;
+    }
+    .cc-page-head {
+        @apply flex flex-wrap items-end justify-between gap-4;
+    }
+    .cc-page-title {
+        font-size: 28px;
+        line-height: 34px;
+        letter-spacing: -0.02em;
+        overflow-wrap: anywhere;
+    }
+    .cc-welcome-title {
+        font-size: clamp(30px, 5vw, 40px);
+        line-height: 1.15;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+    }
+    .cc-muted {
+        color: var(--ink-muted);
+    }
+    .cc-subtle {
+        color: var(--ink-subtle);
+    }
+    .cc-stats {
+        @apply grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4;
+    }
+    .cc-repos {
+        @apply grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3;
+    }
+    .cc-two-columns {
+        @apply grid grid-cols-1 gap-6 lg:grid-cols-2;
+    }
+    .cc-panel {
+        @apply rounded-2xl border p-6;
+        background: var(--surface);
+        border-color: var(--border);
+        box-shadow: var(--shadow-card);
+    }
+    .cc-big-value {
+        font: 800 44px/48px var(--font-display);
+        letter-spacing: -0.02em;
+        font-variant-numeric: tabular-nums;
+    }
+    .cc-hero-value {
+        font: 800 64px/1 var(--font-display);
+        letter-spacing: -0.03em;
+        font-variant-numeric: tabular-nums;
+    }
+    .cc-number-suffix {
+        font-size: 0.5em;
+        font-weight: 700;
+        color: var(--ink-muted);
+    }
+    .cc-table-scroll {
+        overflow-x: auto;
+    }
+    .cc-comparison {
+        @apply flex flex-wrap items-center gap-6 rounded-2xl p-6;
+        background: var(--aqua-soft);
+    }
+    .cc-inline-code {
+        @apply block min-w-0 overflow-x-auto rounded-md px-3 py-2 text-xs;
+        background: var(--surface-sunken);
+        color: var(--ink);
+        white-space: pre;
+    }
+    .cc-danger-text {
+        color: var(--danger);
+    }
+    .cc-auth {
+        @apply flex min-h-screen flex-col items-center justify-center gap-8 px-4 py-12;
+    }
+    .cc-auth-card {
+        @apply w-full max-w-md rounded-2xl border p-6 sm:p-8;
+        background: var(--surface);
+        border-color: var(--border);
+        box-shadow: var(--shadow-card);
+    }
+    .cc-account-menu {
+        @apply absolute right-0 z-30 mt-2 w-56 rounded-xl border p-2 shadow-lg;
+        background: var(--surface);
+        border-color: var(--border);
+    }
+    .cc-menu-item {
+        @apply block w-full rounded-lg px-3 py-2 text-left text-sm;
+        color: var(--ink);
+    }
+    .cc-menu-item:hover {
+        background: var(--surface-hover);
+    }
+    .cc-nav-shell {
+        border-bottom: 1px solid var(--border);
+        background: var(--surface);
+    }
+    .cc-nav-inner {
+        @apply mx-auto flex max-w-[1200px] flex-wrap items-center gap-4 px-4 py-3 sm:px-8;
+        min-height: 64px;
+    }
+    .cc-toolbar {
+        @apply flex flex-wrap items-center justify-between gap-4 border-b px-6 py-4;
+        border-color: var(--border);
+    }
+    .cc-tree {
+        padding: 12px 8px;
+    }
+    .cc-tree-row {
+        min-height: 40px;
+    }
+    .cc-source tr:target .cc-code {
+        outline: 2px solid var(--focus);
+        outline-offset: -2px;
+    }
+    .cc-source tr.cc-current-line .cc-code {
+        outline: 2px solid var(--cov-low);
+        outline-offset: -2px;
+    }
+    .cc-source .cc-ln a {
+        color: inherit;
+    }
+    .cc-source .cc-ln a:hover {
+        color: var(--link);
+    }
+    .cc-stat {
+        min-width: 0;
+    }
+    .cc-tree-row {
+        grid-template-columns: minmax(0, 1fr) 160px;
+    }
+    .cc-skip {
+        @apply sr-only;
+    }
+    .cc-skip:focus {
+        @apply not-sr-only fixed left-4 top-4 z-50 rounded-lg px-4 py-2;
+        background: var(--surface);
+    }
+    .cc-footer {
+        @apply mx-auto flex max-w-[1200px] flex-wrap justify-between gap-2 px-4 pb-6 text-xs sm:px-8;
+        color: var(--ink-subtle);
+    }
+    @media (max-width: 640px) {
+        .cc-tree-row {
+            grid-template-columns: minmax(0, 1fr) 70px;
+            gap: 8px;
+        }
+        .cc-tree-row .cc-meter-track {
+            display: none;
+        }
+        .cc-tree-row .cc-meter {
+            min-width: 0;
+            justify-content: flex-end;
+        }
+        .cc-nav-items {
+            width: 100%;
+            order: 3;
+            overflow-x: auto;
+        }
+        .cc-card-head {
+            flex-wrap: wrap;
+        }
+        .cc-tree-count {
+            display: none;
+        }
+    }
+}

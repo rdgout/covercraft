@@ -40,6 +40,22 @@ class Repository extends Model
         return $this->hasMany(CoverageReport::class);
     }
 
+    public function currentCoverageReports(): HasMany
+    {
+        return $this->coverageReports()->current();
+    }
+
+    public function defaultBranchHistory(): HasMany
+    {
+        return $this->coverageReports()
+            ->select('coverage_reports.*')
+            ->join('repositories', 'repositories.id', '=', 'coverage_reports.repository_id')
+            ->whereColumn('coverage_reports.branch', 'repositories.default_branch')
+            ->where('coverage_reports.status', 'completed')
+            ->orderByDesc('coverage_reports.created_at')
+            ->orderByDesc('coverage_reports.id');
+    }
+
     public function pullRequestComments(): HasMany
     {
         return $this->hasMany(PullRequestComment::class);
