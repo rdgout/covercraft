@@ -1,39 +1,68 @@
-@foreach($tree as $name => $node)
-    @if($node['type'] === 'directory')
-        <details class="group">
-            <summary class="flex items-center justify-between px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer" style="padding-left: {{ ($depth * 1.5) + 1 }}rem">
-                <div class="flex items-center space-x-2">
-                    <svg class="w-4 h-4 text-blue-500 group-open:rotate-90 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                    <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ $name }}/</span>
-                    @if(isset($node['file_count']))
-                        <span class="text-xs text-gray-400 dark:text-gray-500">({{ $node['file_count'] }} files)</span>
-                    @endif
-                </div>
-                @if(isset($node['coverage']))
-                    @php $pct = $node['coverage']; @endphp
-                    <span class="text-xs font-medium {{ $pct >= 80 ? 'text-green-600' : ($pct >= 50 ? 'text-yellow-600' : 'text-red-600') }}">
-                        {{ number_format($pct, 1) }}%
-                    </span>
-                @endif
+@foreach ($tree as $name => $node)
+    @php($path = ltrim($prefix . '/' . $name, '/'))
+    @if ($node['type'] === 'directory')
+        <details
+            @if ($depth < 2) open @endif
+            x-show="directoryMatches(@js($path))"
+            :open="query ? true : $el.open"
+        >
+            <summary
+                class="cc-tree-row cc-tree-dir"
+                style="padding-left: {{ 12 + $depth * 20 }}px"
+            >
+                <span class="cc-tree-name">
+                    <x-icon
+                        name="chevron"
+                        class="cc-tree-chevron h-3 w-3 shrink-0"
+                    />
+                    <x-icon
+                        name="folder"
+                        class="cc-tree-folder shrink-0"
+                    />
+                    <span>{{ $name }}</span>
+                    <span class="cc-tree-count">{{ $node['file_count'] }}
+                        files</span>
+                </span>
+                <x-coverage-meter
+                    :value="$node['coverage']"
+                    class="cc-meter--sm"
+                />
             </summary>
-            <div>
-                @include('dashboard.partials.tree', ['tree' => $node['children'], 'depth' => $depth + 1])
-            </div>
+            @include('dashboard.partials.tree', [
+                'tree' => $node['children'],
+                'depth' => $depth + 1,
+                'prefix' => $path,
+            ])
         </details>
     @else
-        <div class="flex items-center justify-between px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700" style="padding-left: {{ ($depth * 1.5) + 2.5 }}rem">
-            <div class="flex items-center space-x-2">
-                <svg class="w-4 h-4 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
-                @if($node['covered'])
-                    <a href="{{ route('dashboard.file', [$repository, $report->branch, 'path' => $node['path']]) }}" class="text-sm text-blue-600 hover:underline">{{ $name }}</a>
+        <div
+            class="cc-tree-row cc-tree-file"
+            data-file-path="{{ $node['path'] }}"
+            x-show="matches(@js($node['path']))"
+            style="padding-left: {{ 44 + $depth * 20 }}px"
+        >
+            <span class="cc-tree-name">
+                <x-icon
+                    name="file"
+                    class="shrink-0"
+                />
+                @if ($node['covered'])
+                    <a
+                        class="truncate"
+                        href="{{ route('dashboard.file', [$repository, $report->branch, 'path' => $node['path']]) }}"
+                    >{{ $name }}</a>
                 @else
-                    <span class="text-sm text-gray-500 dark:text-gray-400">{{ $name }}</span>
+                    <span>{{ $name }}</span>
                 @endif
-            </div>
-            @php $pct = $node['coverage']; @endphp
-            <span class="text-xs font-medium {{ $node['covered'] ? ($pct >= 80 ? 'text-green-600' : ($pct >= 50 ? 'text-yellow-600' : 'text-red-600')) : 'text-gray-400 dark:text-gray-500' }}">
-                {{ $node['covered'] ? number_format($pct, 1) . '%' : 'N/A' }}
             </span>
+            @if ($node['covered'])
+                <x-coverage-meter
+                    :value="$node['coverage']"
+                    class="cc-meter--sm"
+                />
+            @else
+                <span class="cc-tree-na">No data</span>
+            @endif
         </div>
     @endif
 @endforeach

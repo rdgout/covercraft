@@ -1,96 +1,55 @@
-# Stage 1: Build frontend assets
-FROM node:22-alpine AS node-builder
+# syntax=docker/dockerfile:1
+ARG FRANKENPHP_VERSION=1.12
+ARG PHP_VERSION=8.5
+ARG NODE_VERSION=24
 
+FROM node:${NODE_VERSION}-trixie-slim AS frontend
 WORKDIR /app
-
 COPY package.json package-lock.json ./
-RUN npm ci
-
-COPY vite.config.js postcss.config.js tailwind.config.js ./
-COPY resources/ ./resources/
-
+RUN --mount=type=cache,target=/root/.npm npm ci
+COPY vite.config.js ./
+COPY resources ./resources
 RUN npm run build
 
-# Stage 2: Production application with FrankenPHP
-FROM dunglas/frankenphp:1-php8.4-alpine AS app
-
-# Install system dependencies and PHP extensions
-RUN apk add --no-cache \
-    curl \
-    libpng-dev \
-    libzip-dev \
-    icu-dev \
-    oniguruma-dev \
-    postgresql-dev \
-    && install-php-extensions \
-    pdo_pgsql \
-    pcntl \
-    bcmath \
-    opcache \
-    zip \
-    gd \
-    intl \
-    mbstring \
-    exif \
-    sockets \
-    redis
-
-# PHP production configuration
-RUN echo "opcache.enable=1" > /usr/local/etc/php/conf.d/99-production.ini \
-    && echo "opcache.memory_consumption=256" >> /usr/local/etc/php/conf.d/99-production.ini \
-    && echo "opcache.interned_strings_buffer=16" >> /usr/local/etc/php/conf.d/99-production.ini \
-    && echo "opcache.max_accelerated_files=20000" >> /usr/local/etc/php/conf.d/99-production.ini \
-    && echo "opcache.validate_timestamps=0" >> /usr/local/etc/php/conf.d/99-production.ini \
-    && echo "opcache.save_comments=1" >> /usr/local/etc/php/conf.d/99-production.ini \
-    && echo "opcache.fast_shutdown=1" >> /usr/local/etc/php/conf.d/99-production.ini \
-    && echo "opcache.jit=1255" >> /usr/local/etc/php/conf.d/99-production.ini \
-    && echo "opcache.jit_buffer_size=128M" >> /usr/local/etc/php/conf.d/99-production.ini \
-    && echo "expose_php=Off" >> /usr/local/etc/php/conf.d/99-production.ini \
-    && echo "memory_limit=256M" >> /usr/local/etc/php/conf.d/99-production.ini \
-    && echo "post_max_size=50M" >> /usr/local/etc/php/conf.d/99-production.ini \
-    && echo "upload_max_filesize=50M" >> /usr/local/etc/php/conf.d/99-production.ini
-
-# Install Composer
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
-
+FROM dunglas/frankenphp:${FRANKENPHP_VERSION}-php${PHP_VERSION}-trixie AS base
+ENV COMPOSER_ALLOW_SUPERUSER=1 \
+    COMPOSER_NO_INTERACTION=1 \
+    VIEW_COMPILED_PATH=/app/bootstrap/cache/views
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+RUN install-php-extensions pdo_pgsql pcntl bcmath opcache zip intl mbstring redis
+RUN cp "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
+COPY --from=composer/composer:2-bin /composer /usr/bin/composer
 WORKDIR /app
 
-# Install PHP dependencies
+FROM base AS vendor
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git unzip \
+    && rm -rf /var/lib/apt/lists/*
 COPY composer.json composer.lock ./
-RUN composer install --no-dev --no-interaction --no-scripts --prefer-dist --optimize-autoloader
+RUN --mount=type=cache,target=/tmp/composer-cache \
+    COMPOSER_CACHE_DIR=/tmp/composer-cache \
+    composer install --no-dev --no-scripts --no-autoloader --prefer-dist
 
-# Copy application source
+FROM base AS app
+COPY docker/php.ini /usr/local/etc/php/conf.d/99-covercraft.ini
+COPY docker/Caddyfile /etc/caddy/Caddyfile
+COPY docker/entrypoint.sh /usr/local/bin/entrypoint
+COPY --from=vendor /app/vendor ./vendor
 COPY . .
-
-# Copy compiled frontend assets from node-builder
-COPY --from=node-builder /app/public/build ./public/build
-
-# Set permissions
-RUN chown -R www-data:www-data /app \
-    && chmod -R 755 /app/storage \
-    && chmod -R 755 /app/bootstrap/cache
-
-# Create Caddyfile
-RUN echo ':8000 {' > /etc/caddy/Caddyfile \
-    && echo '    root * /app/public' >> /etc/caddy/Caddyfile \
-    && echo '    encode zstd gzip' >> /etc/caddy/Caddyfile \
-    && echo '' >> /etc/caddy/Caddyfile \
-    && echo '    @vite_assets path /build/*' >> /etc/caddy/Caddyfile \
-    && echo '    header @vite_assets Cache-Control "public, max-age=31536000, immutable"' >> /etc/caddy/Caddyfile \
-    && echo '' >> /etc/caddy/Caddyfile \
-    && echo '    php_server' >> /etc/caddy/Caddyfile \
-    && echo '}' >> /etc/caddy/Caddyfile
-
-# Copy entrypoint
-COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh
-
+COPY --from=frontend /app/public/build ./public/build
+RUN chmod +x /usr/local/bin/entrypoint \
+    && mkdir -p bootstrap/cache/views storage/app/private storage/app/public storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs \
+    && composer dump-autoload --no-dev --optimize --classmap-authoritative \
+    && APP_ENV=production APP_DEBUG=false CACHE_STORE=array SESSION_DRIVER=array QUEUE_CONNECTION=sync php artisan view:cache \
+    && APP_ENV=production APP_DEBUG=false CACHE_STORE=array SESSION_DRIVER=array QUEUE_CONNECTION=sync php artisan event:cache \
+    && ln -s /app/storage/app/public /app/public/storage \
+    && chown -R www-data:www-data bootstrap/cache storage /data /config
+USER www-data
 EXPOSE 8000
-
-HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-    CMD curl -f http://localhost:8000/up || exit 1
-
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+    CMD curl -fsS http://127.0.0.1:8000/up || exit 1
 STOPSIGNAL SIGTERM
-
-ENTRYPOINT ["entrypoint.sh"]
+ENTRYPOINT ["entrypoint"]
 CMD ["frankenphp", "run", "--config", "/etc/caddy/Caddyfile"]

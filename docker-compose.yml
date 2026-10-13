@@ -2,9 +2,19 @@ services:
   app:
     image: ghcr.io/${GITHUB_REPOSITORY:-rdgout/covercraft}:latest
     ports:
-      - "${APP_PORT:-8010}:8000"
+      - '${APP_PORT:-8010}:8000'
     env_file:
       - .env.docker
+    environment: &app-environment
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      CACHE_STORE: redis
+      SESSION_DRIVER: redis
+      QUEUE_CONNECTION: redis
+      LOG_CHANNEL: stderr
     volumes:
       - storage:/app/storage
     depends_on:
@@ -16,7 +26,7 @@ services:
       - covercraft
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/up"]
+      test: ['CMD', 'curl', '-f', 'http://localhost:8000/up']
       interval: 30s
       timeout: 5s
       retries: 3
@@ -29,6 +39,7 @@ services:
     stop_grace_period: 30s
     env_file:
       - .env.docker
+    environment: *app-environment
     volumes:
       - storage:/app/storage
     depends_on:
@@ -38,7 +49,7 @@ services:
       - covercraft
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "php", "artisan", "horizon:status"]
+      test: ['CMD', 'php', 'artisan', 'horizon:status']
       interval: 30s
       timeout: 10s
       retries: 3
@@ -49,6 +60,9 @@ services:
     command: php artisan schedule:work
     env_file:
       - .env.docker
+    environment: *app-environment
+    healthcheck:
+      disable: true
     volumes:
       - storage:/app/storage
     depends_on:
@@ -60,31 +74,29 @@ services:
 
   postgres:
     image: postgres:17-alpine
-    environment:
-      POSTGRES_DB: ${DB_DATABASE:-covercraft}
-      POSTGRES_USER: ${DB_USERNAME:-covercraft}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-secret}
+    env_file:
+      - .env.docker
     volumes:
       - postgres:/var/lib/postgresql/data
     networks:
       - covercraft
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-covercraft} -d ${DB_DATABASE:-covercraft}"]
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
       interval: 5s
       timeout: 5s
       retries: 10
 
   redis:
     image: redis:7-alpine
-    command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy allkeys-lru
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy noeviction
     volumes:
       - redis:/data
     networks:
       - covercraft
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ['CMD', 'redis-cli', 'ping']
       interval: 5s
       timeout: 5s
       retries: 10

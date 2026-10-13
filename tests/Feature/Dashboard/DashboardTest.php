@@ -48,7 +48,7 @@ class DashboardTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('acme/app');
-        $response->assertSee('85.50%');
+        $response->assertSee('85.5%');
     }
 
     public function test_index_shows_empty_state(): void
@@ -194,7 +194,7 @@ class DashboardTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('src/Foo.php');
-        $response->assertSee('50.00%');
+        $response->assertSee('50.0%');
         $response->assertSee('1/2 lines');
     }
 

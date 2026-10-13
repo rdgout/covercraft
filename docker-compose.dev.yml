@@ -4,19 +4,26 @@ services:
       context: .
       target: app
     image: covercraft:latest
-    volumes:
-      - ./public/build:/app/public/build
+    environment:
+      APP_ENV: local
+      APP_DEBUG: 'true'
 
   horizon:
     image: covercraft:latest
+    environment:
+      APP_ENV: local
+      APP_DEBUG: 'true'
 
   scheduler:
     image: covercraft:latest
+    environment:
+      APP_ENV: local
+      APP_DEBUG: 'true'
 
   postgres:
     ports:
-      - "${DB_PORT_FORWARD:-5432}:5432"
+      - '${DB_PORT_FORWARD:-5432}:5432'
 
   redis:
     ports:
-      - "6380:6379"
+      - '6380:6379'

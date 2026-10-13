@@ -1,30 +1,63 @@
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
-    <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <meta name="csrf-token" content="{{ csrf_token() }}">
 
-        <title>{{ config('app.name', 'Laravel') }}</title>
+<head>@include('layouts.head')
+</head>
 
-        <!-- Fonts -->
-        <link rel="preconnect" href="https://fonts.bunny.net">
-        <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
+<body class="antialiased">
+    @php
+        $headings = [
+            'login' => ['Welcome back', 'Your next coverage win starts here.'],
+            'register' => ['Make every line count', 'Create your account and start tracking coverage.'],
+            'password.request' => ['Forgot your password?', 'We’ll help you get back to your repositories.'],
+            'password.reset' => ['A fresh start', 'Choose a new password for your account.'],
+            'password.confirm' => ['Confirm your password', 'A quick check before you continue.'],
+            'verification.notice' => ['Check your inbox', 'Verify your email to finish setting up your account.'],
+        ];
+        [$heading, $description] = $headings[request()->route()->getName()] ?? [
+            'Welcome to CoverCraft',
+            'A clearer picture of your test coverage.',
+        ];
 
-        <!-- Scripts -->
-        @vite(['resources/css/app.css', 'resources/js/app.js'])
-    </head>
-    <body class="font-sans text-gray-900 antialiased">
-        <div class="min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0 bg-gray-100 dark:bg-gray-900">
-            <div>
-                <a href="/">
-                    <x-application-logo class="w-20 h-20 fill-current text-gray-500" />
-                </a>
-            </div>
-
-            <div class="w-full sm:max-w-md mt-6 px-6 py-4 bg-white dark:bg-gray-800 shadow-md overflow-hidden sm:rounded-lg">
-                {{ $slot }}
-            </div>
+    @endphp
+    <button
+        type="button"
+        class="cc-btn cc-btn--ghost absolute right-4 top-4"
+        data-theme-toggle
+        aria-label="Toggle color theme"
+    >
+        <x-icon name="theme" />
+    </button>
+    <main class="cc-auth">
+        <a href="{{ route('dashboard') }}">
+            <x-application-logo />
+        </a>
+        <div class="cc-auth-card">
+            <header class="mb-6">
+                <h1 class="cc-page-title">{{ $heading }}</h1>
+                <p class="cc-muted mt-2 text-sm">{{ $description }}</p>
+            </header>
+            {{ $slot }}
+            @if (request()->routeIs('login'))
+                <p
+                    class="cc-muted mt-6 border-t pt-6 text-center text-sm"
+                    style="border-color: var(--border)"
+                >New here? <a
+                        href="{{ route('register') }}"
+                        class="cc-link"
+                    >Create an account</a>
+                </p>
+            @elseif(request()->routeIs('register', 'password.request', 'password.reset'))
+                <p class="mt-6 text-center text-sm">
+                    <a
+                        href="{{ route('login') }}"
+                        class="cc-link"
+                    >Back to log in</a>
+                </p>
+            @endif
         </div>
-    </body>
+        <p class="cc-subtle text-xs">CoverCraft · Every line counts.</p>
+    </main>
+</body>
+
 </html>

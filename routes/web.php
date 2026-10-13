@@ -8,7 +8,7 @@ use App\Http\Controllers\TeamAccessTokenController;
 use App\Http\Controllers\WebhookController;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
-use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\Facades\Route;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
@@ -23,7 +23,7 @@ Route::get('/badge/{owner}/{name}/{branch}', [BadgeController::class, 'show'])
         AddQueuedCookiesToResponse::class,
         StartSession::class,
         ShareErrorsFromSession::class,
-        ValidateCsrfToken::class,
+        PreventRequestForgery::class,
     ])
     ->middleware('cache.headers:public;max_age=300;etag');
 

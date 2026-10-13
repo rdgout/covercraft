@@ -1,162 +1,177 @@
 <x-app-layout>
-    <div class="py-8">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="space-y-6">
-                <div class="flex justify-between items-center">
-                    <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">API Tokens</h1>
-                    <x-primary-button type="button" onclick="toggleCreateForm()">Create New Token</x-primary-button>
-                </div>
-
-                @if(session('token'))
-                    <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4">
-                        <div class="flex">
-                            <div class="flex-shrink-0">
-                                <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
-                                </svg>
-                            </div>
-                            <div class="ml-3">
-                                <p class="text-sm text-yellow-700">
-                                    <strong>Save this token now - it will not be shown again:</strong>
-                                </p>
-                                <div class="mt-2 flex items-center space-x-2">
-                                    <code id="token-value" class="block bg-white dark:bg-gray-800 px-3 py-2 rounded border border-yellow-200 text-sm font-mono">{{ session('token') }}</code>
-                                    <button onclick="copyToken()" class="px-3 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700 text-sm">
-                                        Copy
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
+    <div
+        class="contents"
+        x-data="{ creating: @js($errors->has('name') || $errors->has('team_id')) }"
+    >
+        <header class="cc-page-head">
+            <div>
+                <h1 class="cc-page-title">API tokens</h1>
+                <p class="cc-muted mt-1">Connect your CI pipeline to CoverCraft.</p>
+            </div>
+            <x-primary-button
+                type="button"
+                @click="creating = !creating"
+                x-bind:aria-expanded="creating"
+                aria-controls="create-token"
+            >
+                <x-icon name="plus" />Create New Token</x-primary-button>
+        </header>
+        @if (session('token'))
+            <div
+                class="cc-callout cc-callout--warning"
+                role="status"
+            >
+                <x-icon name="key" />
+                <div class="min-w-0 flex-1">
+                    <p class="cc-callout-title">Save this token now — it will not be shown again.</p>
+                    <div class="mt-3 flex items-center gap-2">
+                        <code class="cc-inline-code flex-1">{{ session('token') }}</code>
+                        <x-copy-button :value="session('token')" />
                     </div>
-                @endif
-
-                @if(session('success'))
-                    <div class="bg-green-50 border-l-4 border-green-400 p-4">
-                        <p class="text-sm text-green-700">{{ session('success') }}</p>
-                    </div>
-                @endif
-
-                @if($teams->count() > 1)
-                    <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-4">
-                        <label for="team-select" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Filter by Team</label>
-                        <select id="team-select" onchange="window.location.href = this.value" class="block w-full md:w-auto rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                            <option value="{{ route('tokens.index') }}" {{ !$selectedTeamId ? 'selected' : '' }}>All Teams</option>
-                            @foreach($teams as $team)
-                                <option value="{{ route('tokens.index', ['team' => $team->id]) }}" {{ $selectedTeamId == $team->id ? 'selected' : '' }}>
-                                    {{ $team->name }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-                @endif
-
-                <div id="create-form" class="hidden bg-white dark:bg-gray-800 shadow rounded-lg p-6">
-                    <form action="{{ route('tokens.store') }}" method="POST" class="space-y-4">
-                        @csrf
-                        <div>
-                            <label for="team_id" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Team</label>
-                            <select name="team_id" id="team_id" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                <option value="">Select a team</option>
-                                @foreach($teams as $team)
-                                    <option value="{{ $team->id }}" {{ $selectedTeamId == $team->id ? 'selected' : '' }}>
-                                        {{ $team->name }}
-                                    </option>
-                                @endforeach
-                            </select>
-                            @error('team_id')
-                                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                            @enderror
-                        </div>
-
-                        <div>
-                            <label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Token Name</label>
-                            <input type="text" name="name" id="name" required placeholder="e.g., CI/CD Pipeline" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                            @error('name')
-                                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                            @enderror
-                        </div>
-
-                        <div class="flex space-x-2">
-                            <x-primary-button>Create Token</x-primary-button>
-                            <x-secondary-button onclick="toggleCreateForm()">Cancel</x-secondary-button>
-                        </div>
-                    </form>
-                </div>
-
-                @if($tokens->isEmpty())
-                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 text-center text-gray-500 dark:text-gray-400">
-                        No tokens created yet. Create your first token to get started.
-                    </div>
-                @else
-                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
-                        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                            <thead class="bg-gray-50 dark:bg-gray-700">
-                                <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Name</th>
-                                    @if($teams->count() > 1)
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Team</th>
-                                    @endif
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Created By</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Created</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Last Used</th>
-                                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                                @foreach($tokens as $token)
-                                    <tr>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
-                                            {{ $token->name }}
-                                        </td>
-                                        @if($teams->count() > 1)
-                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                                {{ $token->team->name }}
-                                            </td>
-                                        @endif
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                            {{ $token->createdBy?->name ?? 'N/A' }}
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                            {{ $token->created_at->format('M d, Y') }}
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                            {{ $token->last_used_at ? $token->last_used_at->diffForHumans() : 'Never' }}
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            <form action="{{ route('tokens.destroy', $token) }}" method="POST" onsubmit="return confirm('Are you sure you want to revoke this token?');">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit" class="text-red-600 hover:text-red-900">Revoke</button>
-                                            </form>
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
-                @endif
-
-                <div class="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                    <p class="text-sm text-blue-700">
-                        <strong>⚠️ Important:</strong> Tokens provide access to upload coverage for ALL repositories in the selected team.
-                        Anyone with this token can upload coverage data. Keep tokens secure and revoke them if they are compromised.
-                    </p>
                 </div>
             </div>
+        @endif
+        @if ($teams->count() > 1)
+            <form
+                action="{{ route('tokens.index') }}"
+                method="GET"
+                class="flex flex-wrap items-center gap-3"
+            >
+                <x-input-label
+                    for="team-filter"
+                    value="Team"
+                />
+                <select
+                    id="team-filter"
+                    name="team"
+                    class="cc-input max-w-xs"
+                >
+                    <option value="">All teams</option>
+                    @foreach ($teams as $team)
+                        <option
+                            value="{{ $team->id }}"
+                            @selected($selectedTeamId == $team->id)
+                        >{{ $team->name }}</option>
+                    @endforeach
+                </select>
+                <x-secondary-button type="submit">Apply</x-secondary-button>
+            </form>
+
+        @endif
+        <section
+            id="create-token"
+            class="cc-panel"
+            x-show="creating"
+            @if (!$errors->has('name') && !$errors->has('team_id')) x-cloak @endif
+        >
+            <h2 class="cc-card-title mb-5">Create an API token</h2>
+            <form
+                action="{{ route('tokens.store') }}"
+                method="POST"
+                class="max-w-xl space-y-5"
+            >
+                @csrf
+                <div class="cc-field">
+                    <x-input-label
+                        for="team_id"
+                        value="Team"
+                    />
+                    <select
+                        name="team_id"
+                        id="team_id"
+                        required
+                        class="cc-input"
+                    >
+                        <option value="">Select a team</option>
+                        @foreach ($teams as $team)
+                            <option
+                                value="{{ $team->id }}"
+                                @selected(old('team_id', $selectedTeamId ?: ($teams->count() === 1 ? $teams->first()->id : null)) == $team->id)
+                            >{{ $team->name }}</option>
+                        @endforeach
+                    </select>
+                    <x-input-error :messages="$errors->get('team_id')" />
+                </div>
+                <div class="cc-field">
+                    <x-input-label
+                        for="name"
+                        value="Token name"
+                    />
+                    <x-text-input
+                        name="name"
+                        id="name"
+                        :value="old('name')"
+                        placeholder="e.g. GitHub Actions"
+                        required
+                    />
+                    <x-input-error :messages="$errors->get('name')" />
+                </div>
+                <div class="flex gap-2">
+                    <x-primary-button>Create Token</x-primary-button>
+                    <x-secondary-button @click="creating = false">Cancel</x-secondary-button>
+                </div>
+            </form>
+        </section>
+        <section class="cc-card">
+            @if ($tokens->isEmpty())
+                <div class="cc-empty">
+                    <span class="cc-empty-icon">
+                        <x-icon name="key" />
+                    </span>
+                    <h3>No tokens created yet</h3>
+                    <p>Create your first token to upload coverage from your CI pipeline.</p>
+                    <x-primary-button
+                        type="button"
+                        @click="creating = true"
+                    >Create a token</x-primary-button>
+                </div>
+            @else
+                <div class="cc-table-scroll">
+                    <table class="cc-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Team</th>
+                                <th>Created by</th>
+                                <th>Created</th>
+                                <th>Last used</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($tokens as $token)
+                                <tr>
+                                    <td class="font-semibold">{{ $token->name }}</td>
+                                    <td>{{ $token->team->name }}</td>
+                                    <td>{{ $token->createdBy?->name ?? 'N/A' }}</td>
+                                    <td class="whitespace-nowrap">{{ $token->created_at->format('j M Y') }}</td>
+                                    <td>{{ $token->last_used_at?->diffForHumans() ?? 'Never' }}</td>
+                                    <td>
+                                        <form
+                                            action="{{ route('tokens.destroy', $token) }}"
+                                            method="POST"
+                                            onsubmit="return confirm('Revoke this token? CI pipelines using it will no longer be able to upload coverage.')"
+                                        >
+                                            @csrf
+                                            @method('DELETE')
+                                            <button
+                                                type="submit"
+                                                class="cc-btn cc-btn--ghost cc-btn--sm cc-danger-text"
+                                            >Revoke</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+
+            @endif
+        </section>
+        <div class="cc-callout cc-callout--info">
+            <x-icon name="key" />
+            <p>Tokens allow coverage uploads for all repositories in their team. Keep them in your CI secret store and
+                revoke tokens you no longer use.</p>
         </div>
     </div>
-
-    <script>
-    function toggleCreateForm() {
-        const form = document.getElementById('create-form');
-        form.classList.toggle('hidden');
-    }
-
-    function copyToken() {
-        const tokenValue = document.getElementById('token-value').textContent;
-        navigator.clipboard.writeText(tokenValue).then(() => {
-            alert('Token copied to clipboard!');
-        });
-    }
-    </script>
 </x-app-layout>

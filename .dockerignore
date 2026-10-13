@@ -52,3 +52,12 @@ storage/framework/views/*
 # Docker
 docker-compose*.yml
 .dockerignore
+
+# Rebuilt dependencies, local data, and design sources
+vendor
+storage
+database/*.sqlite*
+_design
+.cache
+.agents
+.codex
