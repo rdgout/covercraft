@@ -67,10 +67,7 @@ class DashboardController extends Controller
         $branches = CoverageReport::current()
             ->where('repository_id', $repository->id)
             ->where('branch', '!=', $repository->default_branch)
-            ->select('coverage_reports.*')
-            ->selectRaw('COALESCE(ROUND(coverage_percentage * 100), -1) as ranked_coverage')
-            ->withCasts(['ranked_coverage' => 'integer'])
-            ->orderByDesc('ranked_coverage')
+            ->latest()
             ->orderByDesc('id')
             ->cursorPaginate(20);
 

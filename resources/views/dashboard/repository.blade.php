@@ -60,8 +60,8 @@
     <section class="cc-card">
         <div class="cc-card-head">
             <div>
-                <h2 class="cc-card-title">Branch leaderboard</h2>
-                <p class="cc-card-sub">Default branch pinned first. Other branches ranked by coverage.</p>
+                <h2 class="cc-card-title">Recent branches</h2>
+                <p class="cc-card-sub">Default branch pinned first. Other branches ordered by their latest report.</p>
             </div>
         </div>
         <div class="cc-card-body cc-card-body--flush">

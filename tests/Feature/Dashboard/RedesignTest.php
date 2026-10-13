@@ -80,17 +80,50 @@ class RedesignTest extends TestCase
         $response->assertSee('Coverage trend:');
     }
 
-    public function test_branch_ranking_paginates_equal_scores_and_null_coverage(): void
+    public function test_recent_branches_paginate_equal_timestamps_regardless_of_coverage(): void
     {
         $user = User::factory()->withTeams(1)->create();
         $repository = Repository::factory()->forTeam($user->teams->first())->create(['default_branch' => 'main']);
-        CoverageReport::factory()->for($repository)->count(21)->create(['branch' => 'feature', 'coverage_percentage' => 85.25]);
-        $pending = CoverageReport::factory()->for($repository)->pending()->create(['branch' => 'pending']);
+        $createdAt = now()->startOfSecond();
+        $reports = CoverageReport::factory()->for($repository)->count(21)->create(['branch' => 'feature', 'coverage_percentage' => 85.25, 'created_at' => $createdAt]);
+        $pending = CoverageReport::factory()->for($repository)->pending()->create(['branch' => 'pending', 'created_at' => $createdAt]);
+        $expectedIds = $reports->pluck('id')->push($pending->id)->reverse()->values();
 
         $first = $this->actingAs($user)->get(route('dashboard.repository', $repository))->assertOk();
-        $first->assertViewHas('branches', fn ($branches): bool => $branches->count() === 20);
+        $first->assertViewHas('branches', fn ($branches): bool => $branches->pluck('id')->all() === $expectedIds->take(20)->all());
         $second = $this->get($first->viewData('branches')->nextPageUrl())->assertOk();
-        $second->assertViewHas('branches', fn ($branches): bool => $branches->count() === 2 && $branches->last()->is($pending));
+        $second->assertViewHas('branches', fn ($branches): bool => $branches->pluck('id')->all() === $expectedIds->slice(20)->values()->all());
+    }
+
+    public function test_branches_are_ordered_by_report_recency_instead_of_coverage(): void
+    {
+        $user = User::factory()->withTeams(1)->create();
+        $repository = Repository::factory()->forTeam($user->teams->first())->create(['default_branch' => 'main']);
+        $olderHighCoverage = CoverageReport::factory()->for($repository)->create([
+            'branch' => 'older-high-coverage',
+            'coverage_percentage' => 100,
+            'created_at' => now()->subDays(2),
+        ]);
+        $recentPending = CoverageReport::factory()->for($repository)->pending()->create([
+            'branch' => 'recent-pending',
+            'created_at' => now()->subHour(),
+        ]);
+        $recentLowCoverage = CoverageReport::factory()->for($repository)->create([
+            'branch' => 'recent-low-coverage',
+            'coverage_percentage' => 30,
+            'created_at' => now()->subDay(),
+        ]);
+        CoverageReport::factory()->for($repository)->archived()->create(['branch' => 'archived']);
+
+        $response = $this->actingAs($user)->get(route('dashboard.repository', $repository));
+
+        $response->assertOk()->assertSee('Recent branches');
+        $response->assertViewHas('branches', fn ($branches): bool => $branches->pluck('id')->all() === [
+            $recentPending->id,
+            $recentLowCoverage->id,
+            $olderHighCoverage->id,
+        ]);
+        $response->assertSeeInOrder(['recent-pending', 'recent-low-coverage', 'older-high-coverage']);
     }
 
     public function test_file_tree_uses_report_files_without_a_cache_and_all_files_link_keeps_untracked_files(): void
