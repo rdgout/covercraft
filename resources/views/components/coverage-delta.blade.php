@@ -1,5 +1,12 @@
 @props(['value' => null])
-@php($tone = $value === null ? 'none' : ($value > 0 ? 'up' : ($value < 0 ? 'down' : 'flat')))
+@php
+    $tone = match (true) {
+        $value === null => 'none',
+        $value > 0 => 'up',
+        $value < 0 => 'down',
+        default => 'flat',
+    };
+@endphp
 <span {{ $attributes->class(['cc-delta', 'cc-delta--' . $tone]) }}>
     @if ($value !== null)
         <span aria-hidden="true">{{ $value > 0 ? '↗' : ($value < 0 ? '↘' : '→') }}</span>

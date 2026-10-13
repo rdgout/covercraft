@@ -1,5 +1,8 @@
 export function resolveTheme(stored, systemDark) {
-    return stored === 'dark' || stored === 'light' ? stored : systemDark ? 'dark' : 'light';
+    if (stored === 'dark' || stored === 'light') {
+        return stored;
+    }
+    return systemDark ? 'dark' : 'light';
 }
 
 export function initializeTheme() {

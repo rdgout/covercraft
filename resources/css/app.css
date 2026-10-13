@@ -107,6 +107,7 @@
         color: var(--ink-muted);
     }
     .cc-table-scroll {
+        position: relative;
         overflow-x: auto;
     }
     .cc-comparison {

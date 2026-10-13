@@ -1,11 +1,22 @@
 @props(['value' => null, 'label' => 'Coverage', 'showValue' => true])
-@php($tier = $value === null ? 'none' : ($value >= 80 ? 'high' : ($value >= 50 ? 'mid' : 'low')))
+@php
+    $tier = match (true) {
+        $value === null => 'none',
+        $value >= 80 => 'high',
+        $value >= 50 => 'mid',
+        default => 'low',
+    };
+@endphp
 <div {{ $attributes->class(['cc-meter', 'cc-meter--' . $tier]) }}>
     <div
         class="cc-meter-track"
-        @if ($value !== null) role="meter" aria-label="{{ $label }}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ $value }}" 
-@else
- role="img" aria-label="{{ $label }}: no data" @endif
+        role="{{ $value === null ? 'img' : 'meter' }}"
+        aria-label="{{ $value === null ? $label.': no data' : $label }}"
+        @if ($value !== null)
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow="{{ $value }}"
+        @endif
     >
         <span
             class="cc-meter-fill"

@@ -1,4 +1,12 @@
 <x-app-layout>
+    @php
+        $formValues = [
+            'owner' => old('owner', ''),
+            'name' => old('name', ''),
+            'branch' => old('default_branch', 'main'),
+        ];
+        $defaultTeamId = $teams->count() === 1 ? $teams->first()->id : null;
+    @endphp
     <header class="space-y-3">
         <a
             href="{{ route('repositories.index') }}"
@@ -13,7 +21,7 @@
                 action="{{ route('repositories.store') }}"
                 method="POST"
                 class="space-y-5"
-                x-data="repositoryForm(@js(['owner' => old('owner', ''), 'name' => old('name', ''), 'branch' => old('default_branch', 'main')]), @js(route('repositories.branches')))"
+                x-data="repositoryForm(@js($formValues), @js(route('repositories.branches')))"
             >
                 @csrf
                 <div class="cc-field">
@@ -31,7 +39,7 @@
                         @foreach ($teams as $team)
                             <option
                                 value="{{ $team->id }}"
-                                @selected(old('team_id', $teams->count() === 1 ? $teams->first()->id : null) == $team->id)
+                                @selected(old('team_id', $defaultTeamId) == $team->id)
                             >{{ $team->name }}</option>
                         @endforeach
                     </select>
