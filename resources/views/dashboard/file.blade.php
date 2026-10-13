@@ -71,6 +71,7 @@
                     @php($lineCount = max(count($sourceLines), empty($lineCoverage) ? 0 : max(array_keys($lineCoverage))))
                     @for ($lineNumber = 1; $lineNumber <= $lineCount; $lineNumber++)
                         @php($lineData = $lineCoverage[$lineNumber] ?? null)
+                        @php($sourceLine = $sourceLines[$lineNumber - 1] ?? (empty($sourceLines) ? '(Source code unavailable - showing coverage data only)' : ''))
                         <tr
                             id="L{{ $lineNumber }}"
                             @class([
@@ -85,9 +86,7 @@
                                 >{{ $lineNumber }}</a>
                             </td>
                             <td class="cc-hits">{{ $lineData === null ? '—' : $lineData['count'] . '×' }}</td>
-                            <td class="cc-code">
-                                {{ $sourceLines[$lineNumber - 1] ?? (empty($sourceLines) ? '(Source code unavailable - showing coverage data only)' : '') }}
-                            </td>
+                            <td class="cc-code">{{ $sourceLine }}</td>
                         </tr>
                     @endfor
                     @if ($lineCount === 0)
