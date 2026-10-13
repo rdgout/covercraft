@@ -132,9 +132,9 @@
         <section class="cc-panel space-y-4">
             <div>
                 <h2 class="cc-card-title">Needs attention</h2>
-                <p class="cc-card-sub">Failed reports and branches below the 80% target.</p>
+                <p class="cc-card-sub">Up to 7 recent failed reports or branches below the 80% target.</p>
             </div>
-            @forelse($currentReports->filter(fn ($report) => $report->status === 'failed' || ($report->coverage_percentage !== null && $report->coverage_percentage < 80)) as $attention)
+            @forelse($attentionReports as $attention)
                 <div
                     class="flex flex-wrap items-center justify-between gap-3 rounded-xl p-4"
                     style="background: var(--surface-sunken)"

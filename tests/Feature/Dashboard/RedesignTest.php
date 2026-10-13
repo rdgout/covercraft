@@ -126,6 +126,39 @@ class RedesignTest extends TestCase
         $response->assertSeeInOrder(['recent-pending', 'recent-low-coverage', 'older-high-coverage']);
     }
 
+    public function test_needs_attention_lists_only_the_seven_most_recent_qualifying_reports(): void
+    {
+        $user = User::factory()->withTeams(1)->create();
+        $repository = Repository::factory()->forTeam($user->teams->first())->create(['default_branch' => 'main']);
+        $reports = collect();
+        $createdAt = now()->startOfSecond();
+
+        for ($index = 0; $index < 10; $index++) {
+            $factory = $index % 2 === 0 ? CoverageReport::factory()->failed() : CoverageReport::factory();
+            $reports->push($factory->for($repository)->create([
+                'branch' => 'attention-'.$index,
+                'coverage_percentage' => $index % 2 === 0 ? null : 70,
+                'created_at' => $createdAt->copy()->subDays($index === 9 ? 1 : $index + 1),
+            ]));
+        }
+
+        CoverageReport::factory()->for($repository)->create(['branch' => 'main', 'coverage_percentage' => 95]);
+        CoverageReport::factory()->for($repository)->archived()->failed()->create(['branch' => 'archived']);
+        $expectedBranches = collect([$reports->last()->branch])->concat($reports->take(6)->pluck('branch'))->all();
+
+        $response = $this->actingAs($user)->get(route('dashboard.repository', $repository));
+
+        $response->assertOk();
+        $this->assertSame($expectedBranches, $response->viewData('attentionReports')->pluck('branch')->values()->all());
+        $response->assertViewHas('currentReports', fn ($currentReports): bool => $currentReports->count() === 11);
+
+        $document = new \DOMDocument;
+        $document->loadHTML($response->getContent(), LIBXML_NOERROR | LIBXML_NOWARNING);
+        $links = (new \DOMXPath($document))->query('//section[.//h2[normalize-space()="Needs attention"]]//a');
+        $this->assertCount(7, $links);
+        $this->assertSame($expectedBranches, array_map(fn (\DOMNode $link): string => trim($link->textContent), iterator_to_array($links)));
+    }
+
     public function test_file_tree_uses_report_files_without_a_cache_and_all_files_link_keeps_untracked_files(): void
     {
         $user = User::factory()->withTeams(1)->create();

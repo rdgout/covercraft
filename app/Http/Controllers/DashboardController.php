@@ -58,7 +58,11 @@ class DashboardController extends Controller
     {
         $repository->loadCount('coverageReports');
         $history = $repository->defaultBranchHistory()->limit(8)->get()->reverse()->values();
-        $currentReports = $repository->currentCoverageReports()->get();
+        $currentReports = $repository->currentCoverageReports()->latest()->orderByDesc('id')->get();
+        $attentionReports = $currentReports
+            ->filter(fn (CoverageReport $report): bool => $report->status === 'failed'
+                || ($report->coverage_percentage !== null && $report->coverage_percentage < 80))
+            ->take(7);
         $defaultBranchReport = CoverageReport::current()
             ->where('repository_id', $repository->id)
             ->where('branch', $repository->default_branch)
@@ -73,7 +77,7 @@ class DashboardController extends Controller
 
         $defaultBranchReport?->load('files');
 
-        return view('dashboard.repository', compact('repository', 'branches', 'defaultBranchReport', 'history', 'currentReports'));
+        return view('dashboard.repository', compact('repository', 'branches', 'defaultBranchReport', 'history', 'currentReports', 'attentionReports'));
     }
 
     public function branch(ViewRepositoryRequest $request, Repository $repository, string $branch): View
