@@ -1,13 +1,13 @@
 <x-app-layout>
-    <header class="space-y-3">
+    <header class="cc-detail-head">
         <a
             href="{{ route('dashboard') }}"
-            class="cc-link text-sm"
+            class="cc-link cc-back-link"
         >← All repositories</a>
         <div class="cc-page-head">
             <div>
                 <h1 class="cc-page-title">{{ $repository->owner }}/{{ $repository->name }}</h1>
-                <p class="cc-muted mt-1 text-sm">Default branch <code>{{ $repository->default_branch }}</code> ·
+                <p class="cc-muted mt-1 cc-caption">Default branch <code>{{ $repository->default_branch }}</code> ·
                     {{ $repository->coverage_reports_count }} reports · Connected to GitHub</p>
             </div>
             <div class="flex flex-wrap gap-2">
@@ -22,12 +22,12 @@
             </div>
         </div>
     </header>
-    <div class="cc-stats">
-        <section class="cc-panel flex flex-col gap-4 sm:col-span-2">
+    <div class="cc-stats cc-stats--repository">
+        <section class="cc-panel flex flex-col justify-between gap-4 sm:col-span-2">
             <div class="flex flex-wrap items-center justify-between gap-4">
                 <div>
-                    <p class="cc-overline mb-2">Coverage on {{ $repository->default_branch }}</p>
-                    <p class="cc-hero-value">
+                    <p class="cc-overline mb-1">Coverage on {{ $repository->default_branch }}</p>
+                    <p class="cc-hero-value flex items-baseline">
                         {{ $defaultBranchReport?->coverage_percentage === null ? '—' : number_format($defaultBranchReport->coverage_percentage, 1) }}
                         @if ($defaultBranchReport?->coverage_percentage !== null)
                             <span class="cc-number-suffix">%</span>
@@ -37,14 +37,14 @@
                 <x-sparkline
                     :values="$history->pluck('coverage_percentage')"
                     :width="200"
-                    :height="56"
+                    :height="64"
                 />
             </div>
             <x-coverage-meter
                 :value="$defaultBranchReport?->coverage_percentage"
                 :label="'Coverage on ' . $repository->default_branch"
             />
-            <p class="cc-muted text-sm">The tick marks the 80% coverage target.</p>
+            <p class="cc-muted cc-caption">The tick marks the 80% coverage target.</p>
         </section>
         <x-stat-tile
             label="Branches on target"
@@ -78,6 +78,7 @@
                                 <th>Branch</th>
                                 <th>Coverage</th>
                                 <th>vs {{ $repository->default_branch }}</th>
+                                <th>Trend</th>
                                 <th>Status</th>
                                 <th>Commit</th>
                                 <th>Updated</th>
@@ -93,7 +94,7 @@
                                             href="{{ route('dashboard.branch', [$repository, $branchReport->branch]) }}"
                                             class="cc-link cc-branch"
                                         >
-                                            <x-icon name="branch" />{{ $branchReport->branch }}</a>
+                                            <x-icon name="branch" width="14" height="14" />{{ $branchReport->branch }}</a>
                                         @if ($branchReport->branch === $repository->default_branch)
                                             <span class="cc-tag ml-2">Default</span>
                                         @endif
@@ -102,11 +103,14 @@
                                         <x-coverage-meter :value="$branchReport->coverage_percentage" />
                                     </td>
                                     <td>
-                                        <x-coverage-delta :value="$branchReport->coverage_percentage !== null &&
+                                        <x-coverage-delta :value="$branchReport->branch !== $repository->default_branch && $branchReport->coverage_percentage !== null &&
                                         $defaultBranchReport?->coverage_percentage !== null
                                             ? $branchReport->coverage_percentage -
                                                 $defaultBranchReport->coverage_percentage
                                             : null" />
+                                    </td>
+                                    <td>
+                                        <x-sparkline :values="($branchHistories->get($branchReport->branch) ?? collect())->pluck('coverage_percentage')" />
                                     </td>
                                     <td>
                                         <x-report-status :status="$branchReport->status" />
@@ -135,16 +139,13 @@
                 <p class="cc-card-sub">Up to 7 recent failed reports or branches below the 80% target.</p>
             </div>
             @forelse($attentionReports as $attention)
-                <div
-                    class="flex flex-wrap items-center justify-between gap-3 rounded-xl p-4"
-                    style="background: var(--surface-sunken)"
-                >
-                    <div class="min-w-0">
+                <div class="cc-attention-row">
+                    <div class="min-w-0 flex-1">
                         <a
                             class="cc-link break-all"
                             href="{{ route('dashboard.branch', [$repository, $attention->branch]) }}"
                         >{{ $attention->branch }}</a>
-                        <p class="cc-muted text-xs">
+                        <p class="cc-muted cc-caption mt-0.5">
                             {{ $attention->status === 'failed' ? 'The last report failed. Check your CI pipeline.' : 'Below the coverage target.' }}
                         </p>
                     </div>
@@ -168,7 +169,6 @@
             <img
                 src="{{ $badgeUrl }}"
                 alt="Coverage on {{ $repository->default_branch }}"
-                width="140"
                 height="20"
                 loading="lazy"
             >

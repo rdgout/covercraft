@@ -1,4 +1,4 @@
-@props(['value' => null, 'size' => 'sm'])
+@props(['value' => null, 'size' => 'sm', 'suffix' => ''])
 @php
     $tier = match (true) {
         $value === null => 'none',
@@ -12,5 +12,5 @@
         class="cc-badge-dot"
         aria-hidden="true"
     >
-    </span>{{ $value === null ? 'No data' : number_format($value, 1) . '%' }}
+    </span>{{ $value === null ? 'No data' : number_format($value, 1) . '%' . ($suffix ? ' ' . $suffix : '') }}
 </span>

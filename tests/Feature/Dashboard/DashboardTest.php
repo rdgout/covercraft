@@ -195,7 +195,7 @@ class DashboardTest extends TestCase
         $response->assertOk();
         $response->assertSee('src/Foo.php');
         $response->assertSee('50.0%');
-        $response->assertSee('1/2 lines');
+        $response->assertSee('1 of 2 executable lines');
     }
 
     public function test_file_page_returns_404_for_missing_file(): void

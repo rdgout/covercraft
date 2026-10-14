@@ -9,6 +9,7 @@ use App\Models\Repository;
 use App\Models\RepositoryFileCache;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class RedesignTest extends TestCase
@@ -172,7 +173,8 @@ class RedesignTest extends TestCase
         $this->get(route('dashboard.branch', [$repository, 'main']))->assertOk()->assertDontSee('Untracked.php');
     }
 
-    public function test_source_preserves_only_its_own_whitespace_is_escaped_and_has_navigable_uncovered_lines(): void
+    #[DataProvider('sourceLineSeparators')]
+    public function test_source_preserves_only_its_own_whitespace_is_escaped_and_has_navigable_uncovered_lines(string $lineSeparator): void
     {
         $user = User::factory()->withTeams(1)->create();
         $repository = Repository::factory()->forTeam($user->teams->first())->create();
@@ -182,8 +184,8 @@ class RedesignTest extends TestCase
             2 => ['covered' => true, 'count' => 3],
             5 => ['covered' => false, 'count' => 0],
         ])))]);
-        $this->mock(GitHubServiceInterface::class, function ($mock) use ($sourceLines): void {
-            $mock->shouldReceive('fetchFileContents')->once()->andReturn(implode("\n", $sourceLines));
+        $this->mock(GitHubServiceInterface::class, function ($mock) use ($sourceLines, $lineSeparator): void {
+            $mock->shouldReceive('fetchFileContents')->once()->andReturn(implode($lineSeparator, $sourceLines));
         });
 
         $response = $this->actingAs($user)->get(route('dashboard.file', [$repository, 'main', 'path' => 'src/File.php']))
@@ -197,6 +199,14 @@ class RedesignTest extends TestCase
 
         $this->assertSame($sourceLines, array_map(fn (\DOMNode $cell): string => $cell->textContent, iterator_to_array($cells)));
         $this->assertCount(1, $xpath->query('//tr[@id="L5" and contains(@class, "is-uncovered")]'));
+    }
+
+    /**
+     * @return list<array{string}>
+     */
+    public static function sourceLineSeparators(): array
+    {
+        return [["\n"], ["\r\n"], ["\r"]];
     }
 
     public function test_token_validation_keeps_the_form_open_and_retains_old_values(): void

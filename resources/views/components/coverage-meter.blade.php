@@ -1,4 +1,4 @@
-@props(['value' => null, 'label' => 'Coverage', 'showValue' => true])
+@props(['value' => null, 'label' => 'Coverage', 'showValue' => true, 'size' => 'md'])
 @php
     $tier = match (true) {
         $value === null => 'none',
@@ -7,7 +7,7 @@
         default => 'low',
     };
 @endphp
-<div {{ $attributes->class(['cc-meter', 'cc-meter--' . $tier]) }}>
+<div {{ $attributes->class(['cc-meter', 'cc-meter--' . $tier, 'cc-meter--sm' => $size === 'sm']) }}>
     <div
         class="cc-meter-track"
         role="{{ $value === null ? 'img' : 'meter' }}"

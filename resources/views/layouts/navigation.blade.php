@@ -15,12 +15,12 @@
             <a
                 href="{{ route('dashboard') }}"
                 class="cc-nav-item"
-                @if (request()->routeIs('dashboard*')) aria-current="page" @endif
+                @if (request()->routeIs('dashboard')) aria-current="page" @endif
             >Dashboard</a>
             <a
                 href="{{ route('repositories.index') }}"
                 class="cc-nav-item"
-                @if (request()->routeIs('repositories.*')) aria-current="page" @endif
+                @if (request()->routeIs('repositories.*', 'dashboard.repository', 'dashboard.branch', 'dashboard.file')) aria-current="page" @endif
             >Repositories</a>
             <a
                 href="{{ route('tokens.index') }}"
@@ -47,8 +47,10 @@
                     @click="menuOpen = !menuOpen"
                     :aria-expanded="menuOpen"
                     aria-controls="account-menu"
+                    aria-label="Account menu for {{ auth()->user()->name }}"
                 >
-                    <span class="cc-avatar">{{ mb_strtoupper(mb_substr(auth()->user()->name, 0, 1)) }}</span>
+                    @php($initials = Str::of(auth()->user()->name)->squish()->explode(' ')->take(2)->map(fn (string $name) => mb_strtoupper(mb_substr($name, 0, 1)))->implode(''))
+                    <span class="cc-avatar" aria-hidden="true">{{ $initials }}</span>
                     <span class="hidden text-sm font-semibold sm:inline">{{ auth()->user()->name }}</span>
                     <x-icon name="chevron" />
                 </button>

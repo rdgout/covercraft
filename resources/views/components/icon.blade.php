@@ -1,10 +1,10 @@
 @props(['name'])
 <svg
-    {{ $attributes->merge(['class' => 'cc-icon', 'width' => 18, 'height' => 18]) }}
+    {{ $attributes->merge(['class' => 'cc-icon', 'width' => 16, 'height' => 16]) }}
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"
-    stroke-width="1.7"
+    stroke-width="2"
     stroke-linecap="round"
     stroke-linejoin="round"
     aria-hidden="true"
@@ -12,6 +12,18 @@
     @switch($name)
         @case('plus')
             <path d="M12 5v14m-7-7h14" />
+        @break
+
+        @case('arrow-right')
+            <path d="M5 12h14M13 6l6 6-6 6" />
+        @break
+
+        @case('arrow-up')
+            <path d="M12 19V5M6 11l6-6 6 6" />
+        @break
+
+        @case('arrow-down')
+            <path d="M12 5v14M6 13l6 6 6-6" />
         @break
 
         @case('chevron')

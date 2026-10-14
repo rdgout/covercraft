@@ -12,7 +12,7 @@
     @include('layouts.navigation')
     <main
         id="main-content"
-        class="cc-main"
+        {{ $attributes->class(['cc-main']) }}
     >
         @isset($header)
             <header>{{ $header }}</header>
@@ -27,10 +27,6 @@
         @endif
         {{ $slot }}
     </main>
-    <footer class="cc-footer">
-        <span>CoverCraft · Every line counts.</span>
-        <span>Made for better coverage.</span>
-    </footer>
 </body>
 
 </html>

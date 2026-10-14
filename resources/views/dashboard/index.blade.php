@@ -1,4 +1,4 @@
-<x-app-layout>
+<x-app-layout class="cc-main--dashboard">
     <header class="cc-page-head">
         <div class="space-y-1">
             <p class="cc-overline">{{ now()->format('l, j F') }}</p>
@@ -92,7 +92,7 @@
                             ->sortBy('coverage_percentage')
                             ->first();
                         $coverage = $repository->latestCoverageReport?->coverage_percentage;
-
+                        $coverageParts = $coverage === null ? null : explode('.', number_format($coverage, 1));
                     @endphp
                     <article class="cc-panel flex flex-col gap-4">
                         <div class="flex items-start justify-between gap-3">
@@ -101,16 +101,17 @@
                                     class="cc-link break-words text-base"
                                     href="{{ route('dashboard.repository', $repository) }}"
                                 >{{ $repository->owner }}/{{ $repository->name }}</a>
-                                <p class="cc-subtle mt-1 text-xs">{{ $current->count() }} branches ·
+                                <p class="cc-subtle mt-0.5 cc-caption">{{ $current->count() }} branches ·
                                     {{ $current->where('status', 'completed')->where('coverage_percentage', '>=', 80)->count() }}
                                     on target</p>
                             </div>
                             <span class="cc-tag shrink-0">{{ $repository->default_branch }}</span>
                         </div>
                         <div class="flex items-end justify-between gap-2">
-                            <span class="cc-big-value">{{ $coverage === null ? '—' : number_format($coverage, 1) }}
-                                @if ($coverage !== null)
-                                    <span class="cc-number-suffix">%</span>
+                            <span class="cc-repo-value">
+                                <span class="cc-big-value">{{ $coverageParts[0] ?? '—' }}</span>
+                                @if ($coverageParts !== null)
+                                    <span class="cc-repo-fraction">.{{ $coverageParts[1] }}%</span>
                                 @endif
                             </span>
                             <x-sparkline :values="$repository->defaultBranchHistory->reverse()->pluck('coverage_percentage')" />
