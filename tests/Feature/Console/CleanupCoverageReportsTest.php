@@ -452,6 +452,26 @@ class CleanupCoverageReportsTest extends TestCase
     /**
      * @param  array<string, mixed>  $attributes
      */
+    public function test_retains_inflight_diffs_then_prunes_expired_artifacts(): void
+    {
+        config(['coverage.github_token' => null]);
+        $repository = Repository::factory()->create(['default_branch' => 'main']);
+        $old = CoverageReport::factory()->for($repository)->archived()->create([
+            'branch' => 'feature/diff', 'created_at' => now()->subDays(2),
+            'diff_status' => 'processing', 'diff_file_path' => 'coverage/old.diff', 'diff_index_path' => 'coverage/old.jsonl',
+        ]);
+        CoverageReport::factory()->for($repository)->create(['branch' => 'feature/diff']);
+        Storage::disk('local')->put('coverage/old.diff', 'artifact');
+        Storage::disk('local')->put('coverage/old.jsonl', 'index');
+        $this->artisan('coverage:cleanup', ['--repository' => $repository->id])->assertSuccessful();
+        $this->assertNotNull($old->fresh());
+        Storage::disk('local')->assertExists('coverage/old.diff');
+        CoverageReport::query()->whereKey($old->id)->update(['updated_at' => now()->subHour()]);
+        $this->artisan('coverage:cleanup', ['--repository' => $repository->id])->assertSuccessful();
+        $this->assertNull($old->fresh());
+        Storage::disk('local')->assertMissing(['coverage/old.diff', 'coverage/old.jsonl']);
+    }
+
     private function report(Repository $repository, string $branch, int $daysAgo, array $attributes = []): CoverageReport
     {
         return CoverageReport::factory()->for($repository)->onBranch($branch)->create(array_merge([

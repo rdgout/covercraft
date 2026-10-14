@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Jobs;
 
+use App\Jobs\CalculateChangedLineCoverageJob;
 use App\Jobs\FetchRepositoryFilesJob;
 use App\Jobs\PostPullRequestCommentJob;
 use App\Jobs\ProcessCoverageJob;
@@ -234,6 +235,19 @@ XML;
         $job->failed(new \RuntimeException('Not found'));
 
         $this->assertDatabaseMissing('coverage_reports', ['id' => 99999]);
+    }
+
+    public function test_completed_clover_waits_for_diff_without_changing_coverage(): void
+    {
+        Queue::fake();
+        $report = $this->createReportWithCloverFile($this->validCloverXml(), [
+            'diff_sha256' => str_repeat('a', 64), 'diff_status' => 'queued',
+            'patch_coverage' => ['status' => 'awaiting_coverage'],
+        ]);
+        (new ProcessCoverageJob($report->id))->handle(new CloverParser);
+        $this->assertSame('completed', $report->fresh()->status);
+        $this->assertSame('awaiting_diff', $report->fresh()->patch_coverage['status']);
+        Queue::assertNotPushed(CalculateChangedLineCoverageJob::class);
     }
 
     private function createReportWithCloverFile(string $xml, array $overrides = [], bool $withFileCache = true): CoverageReport
