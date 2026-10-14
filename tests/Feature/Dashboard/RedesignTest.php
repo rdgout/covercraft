@@ -173,6 +173,55 @@ class RedesignTest extends TestCase
         $this->get(route('dashboard.branch', [$repository, 'main']))->assertOk()->assertDontSee('Untracked.php');
     }
 
+    public function test_file_tree_displays_weighted_coverage_and_distinguishes_zero_lines_from_missing_data(): void
+    {
+        $user = User::factory()->withTeams(1)->create();
+        $repository = Repository::factory()->forTeam($user->teams->first())->create();
+        $report = CoverageReport::factory()->for($repository)->create(['branch' => 'main']);
+        CoverageFile::factory()->for($report)->create([
+            'file_path' => 'src/Service.php',
+            'total_lines' => 100,
+            'covered_lines' => 80,
+            'coverage_percentage' => 80,
+        ]);
+        CoverageFile::factory()->for($report)->create([
+            'file_path' => 'src/Uncovered.php',
+            'total_lines' => 10,
+            'covered_lines' => 0,
+            'coverage_percentage' => 0,
+        ]);
+        CoverageFile::factory()->for($report)->create([
+            'file_path' => 'src/Contracts/Contract.php',
+            'total_lines' => 0,
+            'covered_lines' => 0,
+            'coverage_percentage' => 0,
+        ]);
+        RepositoryFileCache::factory()->create([
+            'repository_id' => $repository->id,
+            'branch' => 'main',
+            'files' => ['src/Unknown/Missing.php'],
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get(route('dashboard.branch', [$repository, 'main', 'covered_only' => 0]))
+            ->assertOk();
+
+        $response->assertViewHas('fileTree', fn (array $tree): bool => $tree['src']['coverage'] === 72.73
+            && $tree['src']['file_count'] === 4
+            && $tree['src']['total_lines'] === 110
+            && $tree['src']['covered_lines'] === 80);
+
+        $document = new \DOMDocument;
+        $document->loadHTML($response->getContent(), LIBXML_NOERROR | LIBXML_NOWARNING);
+        $xpath = new \DOMXPath($document);
+
+        $this->assertSame('N/A', $xpath->query('//div[@data-file-path="src/Contracts/Contract.php"]/span[@class="cc-tree-na"]')->item(0)?->textContent);
+        $this->assertSame('No data', $xpath->query('//div[@data-file-path="src/Unknown/Missing.php"]/span[@class="cc-tree-na"]')->item(0)?->textContent);
+        $this->assertSame('0', $xpath->query('//div[@data-file-path="src/Uncovered.php"]//*[@role="meter"]')->item(0)?->attributes->getNamedItem('aria-valuenow')?->nodeValue);
+        $this->assertSame('N/A', $xpath->query('//summary[.//span[normalize-space()="Contracts"]]/span[@class="cc-tree-na"]')->item(0)?->textContent);
+        $this->assertSame('No data', $xpath->query('//summary[.//span[normalize-space()="Unknown"]]/span[@class="cc-tree-na"]')->item(0)?->textContent);
+    }
+
     #[DataProvider('sourceLineSeparators')]
     public function test_source_preserves_only_its_own_whitespace_is_escaped_and_has_navigable_uncovered_lines(string $lineSeparator): void
     {

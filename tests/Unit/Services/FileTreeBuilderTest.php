@@ -54,7 +54,7 @@ class FileTreeBuilderTest extends TestCase
         $this->assertTrue($fooNode['covered']);
         $this->assertEquals(85.50, $fooNode['coverage']);
         $this->assertFalse($barNode['covered']);
-        $this->assertEquals(0.0, $barNode['coverage']);
+        $this->assertNull($barNode['coverage']);
     }
 
     public function test_handles_empty_file_list(): void
@@ -75,24 +75,32 @@ class FileTreeBuilderTest extends TestCase
         $this->assertFalse($tree['src']['children']['Foo.php']['covered']);
     }
 
-    public function test_calculates_directory_coverage(): void
+    public function test_calculates_directory_coverage_from_executable_line_totals(): void
     {
         $report = CoverageReport::factory()->create();
         CoverageFile::factory()->create([
             'coverage_report_id' => $report->id,
             'file_path' => 'src/A.php',
-            'coverage_percentage' => 80.00,
+            'total_lines' => 100,
+            'covered_lines' => 90,
+            'coverage_percentage' => 90.00,
         ]);
         CoverageFile::factory()->create([
             'coverage_report_id' => $report->id,
             'file_path' => 'src/B.php',
-            'coverage_percentage' => 60.00,
+            'total_lines' => 10,
+            'covered_lines' => 0,
+            'coverage_percentage' => 0.00,
         ]);
 
         $tree = $this->builder->build($report, ['src/A.php', 'src/B.php']);
 
-        $this->assertEquals(70.0, $tree['src']['coverage']);
+        $this->assertSame(81.82, $tree['src']['coverage']);
+        $this->assertSame(110, $tree['src']['total_lines']);
+        $this->assertSame(90, $tree['src']['covered_lines']);
         $this->assertEquals(2, $tree['src']['file_count']);
+        $this->assertSame(0.0, $tree['src']['children']['B.php']['coverage']);
+        $this->assertTrue($tree['src']['children']['B.php']['covered']);
     }
 
     public function test_exclusion_patterns_filter_files(): void
@@ -135,22 +143,73 @@ class FileTreeBuilderTest extends TestCase
         CoverageFile::factory()->create([
             'coverage_report_id' => $report->id,
             'file_path' => 'src/Http/Controllers/HomeController.php',
+            'total_lines' => 100,
+            'covered_lines' => 100,
             'coverage_percentage' => 100.00,
         ]);
         CoverageFile::factory()->create([
             'coverage_report_id' => $report->id,
-            'file_path' => 'src/Http/Controllers/ApiController.php',
+            'file_path' => 'src/Http/Controllers/Api/ApiController.php',
+            'total_lines' => 300,
+            'covered_lines' => 150,
             'coverage_percentage' => 50.00,
         ]);
 
         $tree = $this->builder->build($report, [
             'src/Http/Controllers/HomeController.php',
-            'src/Http/Controllers/ApiController.php',
+            'src/Http/Controllers/Api/ApiController.php',
         ]);
 
-        $this->assertEquals(75.0, $tree['src']['coverage']);
-        $this->assertEquals(75.0, $tree['src']['children']['Http']['coverage']);
-        $this->assertEquals(75.0, $tree['src']['children']['Http']['children']['Controllers']['coverage']);
+        $this->assertSame(62.5, $tree['src']['coverage']);
+        $this->assertSame(62.5, $tree['src']['children']['Http']['coverage']);
+        $this->assertSame(62.5, $tree['src']['children']['Http']['children']['Controllers']['coverage']);
+        $this->assertSame(50.0, $tree['src']['children']['Http']['children']['Controllers']['children']['Api']['coverage']);
+    }
+
+    public function test_zero_line_files_and_missing_reports_do_not_dilute_directory_coverage(): void
+    {
+        $report = CoverageReport::factory()->create();
+        CoverageFile::factory()->for($report)->create([
+            'file_path' => 'src/Service.php',
+            'total_lines' => 100,
+            'covered_lines' => 80,
+            'coverage_percentage' => 80,
+        ]);
+        CoverageFile::factory()->for($report)->create([
+            'file_path' => 'src/Contract.php',
+            'total_lines' => 0,
+            'covered_lines' => 0,
+            'coverage_percentage' => 0,
+        ]);
+
+        $tree = $this->builder->build($report, ['src/Service.php', 'src/Contract.php', 'src/Missing.php']);
+        $directory = $tree['src'];
+
+        $this->assertSame(80.0, $directory['coverage']);
+        $this->assertSame(3, $directory['file_count']);
+        $this->assertNull($directory['children']['Contract.php']['coverage']);
+        $this->assertTrue($directory['children']['Contract.php']['covered']);
+        $this->assertNull($directory['children']['Missing.php']['coverage']);
+        $this->assertFalse($directory['children']['Missing.php']['covered']);
+    }
+
+    public function test_directories_without_executable_lines_have_no_percentage(): void
+    {
+        $report = CoverageReport::factory()->create();
+        CoverageFile::factory()->for($report)->create([
+            'file_path' => 'src/Contracts/Contract.php',
+            'total_lines' => 0,
+            'covered_lines' => 0,
+            'coverage_percentage' => 0,
+        ]);
+
+        $tree = $this->builder->build($report, ['src/Contracts/Contract.php', 'src/Unknown/Missing.php']);
+
+        $this->assertNull($tree['src']['coverage']);
+        $this->assertNull($tree['src']['children']['Contracts']['coverage']);
+        $this->assertTrue($tree['src']['children']['Contracts']['covered']);
+        $this->assertNull($tree['src']['children']['Unknown']['coverage']);
+        $this->assertFalse($tree['src']['children']['Unknown']['covered']);
     }
 
     public function test_sorts_directories_before_files_alphabetically(): void
