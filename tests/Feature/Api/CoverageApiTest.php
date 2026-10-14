@@ -7,11 +7,15 @@ use App\Models\CoverageReport;
 use App\Models\Repository;
 use App\Models\Team;
 use App\Models\TeamAccessToken;
+use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use League\Flysystem\UnableToWriteFile;
+use Mockery;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class CoverageApiTest extends TestCase
@@ -130,6 +134,51 @@ class CoverageApiTest extends TestCase
         $files = Storage::disk('local')->files('coverage');
         $this->assertCount(1, $files);
         $this->assertStringContainsString('acme_app_main_aaaaaaaa_', $files[0]);
+    }
+
+    #[DataProvider('storageFailures')]
+    public function test_storage_failure_rejects_upload_without_archiving_reports_or_queuing_processing(bool $throwsException): void
+    {
+        $existingReport = CoverageReport::factory()->create([
+            'repository_id' => $this->repository->id,
+            'branch' => 'main',
+            'status' => 'completed',
+            'archived' => false,
+        ]);
+        $disk = Mockery::mock(FilesystemAdapter::class);
+        $write = $disk->shouldReceive('putFileAs')
+            ->once()
+            ->with('coverage', Mockery::type(UploadedFile::class), Mockery::type('string'), []);
+
+        if ($throwsException) {
+            $write->andThrow(UnableToWriteFile::atLocation('coverage/report.xml', 'Permission denied'));
+        } else {
+            $write->andReturn(false);
+        }
+
+        Storage::shouldReceive('disk')->with('local')->once()->andReturn($disk);
+
+        $this->withToken($this->apiToken)->postJson('/api/coverage', [
+            'repository' => 'acme/app',
+            'branch' => 'main',
+            'commit_sha' => str_repeat('a', 40),
+            'clover_file' => UploadedFile::fake()->create('clover.xml', 100),
+        ])->assertStatus(500)->assertExactJson([
+            'error' => 'Coverage file could not be stored. Please try again later.',
+        ]);
+
+        $this->assertDatabaseCount('coverage_reports', 1);
+        $this->assertFalse($existingReport->fresh()->archived);
+        $this->assertNull($existingReport->fresh()->archived_at);
+        Queue::assertNotPushed(ProcessCoverageJob::class);
+    }
+
+    public static function storageFailures(): array
+    {
+        return [
+            'disk returns false' => [false],
+            'disk throws a write exception' => [true],
+        ];
     }
 
     public function test_job_is_dispatched(): void

@@ -5,11 +5,42 @@ namespace Tests\Feature;
 use App\Models\CoverageReport;
 use App\Models\Repository;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class BadgeTest extends TestCase
 {
     use RefreshDatabase;
+
+    #[DataProvider('coverageTiers')]
+    public function test_badge_uses_the_design_palette_and_percentage_format(float $coverage, string $color): void
+    {
+        $repository = Repository::factory()->create(['owner' => 'acme', 'name' => 'design']);
+        CoverageReport::factory()->for($repository)->create(['branch' => 'main', 'coverage_percentage' => $coverage]);
+
+        $response = $this->get('/badge/acme/design/main')->assertOk();
+        $document = new \DOMDocument;
+        $this->assertTrue($document->loadXML($response->getContent()));
+        $paths = $document->getElementsByTagName('path');
+        $this->assertSame('#0d1c3c', $paths->item(0)->getAttribute('fill'));
+        $this->assertSame($color, $paths->item(1)->getAttribute('fill'));
+        $this->assertSame(number_format($coverage, 1).'%', $document->getElementsByTagName('text')->item(1)->textContent);
+    }
+
+    /**
+     * @return list<array{float, string}>
+     */
+    public static function coverageTiers(): array
+    {
+        return [
+            [0.0, '#ff7a59'],
+            [49.9, '#ff7a59'],
+            [50.0, '#ffc94a'],
+            [79.9, '#ffc94a'],
+            [80.0, '#72cad7'],
+            [100.0, '#72cad7'],
+        ];
+    }
 
     public function test_badge_displays_unknown_when_repository_does_not_exist(): void
     {
@@ -57,7 +88,7 @@ class BadgeTest extends TestCase
         $response->assertOk();
         $response->assertHeader('Content-Type', 'image/svg+xml');
         $this->assertStringContainsString('coverage', $response->getContent());
-        $this->assertStringContainsString('85.50', $response->getContent());
+        $this->assertStringContainsString('85.5%', $response->getContent());
     }
 
     public function test_badge_ignores_archived_reports(): void
@@ -79,7 +110,7 @@ class BadgeTest extends TestCase
 
         $response->assertOk();
         $this->assertStringContainsString('?', $response->getContent());
-        $this->assertStringNotContainsString('85.50', $response->getContent());
+        $this->assertStringNotContainsString('85.5%', $response->getContent());
     }
 
     public function test_badge_ignores_non_completed_reports(): void
@@ -130,8 +161,8 @@ class BadgeTest extends TestCase
         $response = $this->get('/badge/testowner/testrepo/main');
 
         $response->assertOk();
-        $this->assertStringContainsString('90.25', $response->getContent());
-        $this->assertStringNotContainsString('75.00', $response->getContent());
+        $this->assertStringContainsString('90.3%', $response->getContent());
+        $this->assertStringNotContainsString('75.0%', $response->getContent());
     }
 
     public function test_badge_handles_different_branches(): void
@@ -159,10 +190,10 @@ class BadgeTest extends TestCase
         $responseDevelop = $this->get('/badge/testowner/testrepo/develop');
 
         $responseMain->assertOk();
-        $this->assertStringContainsString('85.50', $responseMain->getContent());
+        $this->assertStringContainsString('85.5%', $responseMain->getContent());
 
         $responseDevelop->assertOk();
-        $this->assertStringContainsString('92.00', $responseDevelop->getContent());
+        $this->assertStringContainsString('92.0%', $responseDevelop->getContent());
     }
 
     public function test_badge_handles_branches_with_slashes(): void
@@ -182,7 +213,7 @@ class BadgeTest extends TestCase
         $response = $this->get('/badge/testowner/testrepo/feature/awesome-feature');
 
         $response->assertOk();
-        $this->assertStringContainsString('88.75', $response->getContent());
+        $this->assertStringContainsString('88.8%', $response->getContent());
     }
 
     public function test_badge_returns_cache_headers(): void

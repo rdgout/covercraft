@@ -8,6 +8,7 @@ use App\Models\CoverageReport;
 use App\Models\Repository;
 use App\Models\RepositoryFileCache;
 use App\Services\FileTreeBuilder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -58,7 +59,11 @@ class DashboardController extends Controller
     {
         $repository->loadCount('coverageReports');
         $history = $repository->defaultBranchHistory()->limit(8)->get()->reverse()->values();
-        $currentReports = $repository->currentCoverageReports()->get();
+        $currentReports = $repository->currentCoverageReports()->latest()->orderByDesc('id')->get();
+        $attentionReports = $currentReports
+            ->filter(fn (CoverageReport $report): bool => $report->status === 'failed'
+                || ($report->coverage_percentage !== null && $report->coverage_percentage < 80))
+            ->take(7);
         $defaultBranchReport = CoverageReport::current()
             ->where('repository_id', $repository->id)
             ->where('branch', $repository->default_branch)
@@ -72,8 +77,19 @@ class DashboardController extends Controller
             ->cursorPaginate(20);
 
         $defaultBranchReport?->load('files');
+        $visibleBranches = collect($defaultBranchReport ? [$defaultBranchReport->branch] : [])
+            ->concat($branches->pluck('branch'));
+        $branchHistories = $repository->coverageReports()
+            ->whereIn('branch', $visibleBranches)
+            ->where('status', 'completed')
+            ->latest()
+            ->orderByDesc('id')
+            ->groupLimit(8, 'branch')
+            ->get(['id', 'branch', 'coverage_percentage', 'created_at'])
+            ->groupBy('branch')
+            ->map(fn (Collection $reports): Collection => $reports->reverse()->values());
 
-        return view('dashboard.repository', compact('repository', 'branches', 'defaultBranchReport', 'history', 'currentReports'));
+        return view('dashboard.repository', compact('repository', 'branches', 'defaultBranchReport', 'history', 'currentReports', 'attentionReports', 'branchHistories'));
     }
 
     public function branch(ViewRepositoryRequest $request, Repository $repository, string $branch): View
@@ -133,6 +149,22 @@ class DashboardController extends Controller
             ->firstOrFail();
 
         $lineCoverage = $file->line_coverage;
+        $uncoveredRanges = $this->uncoveredLineRanges($lineCoverage);
+        $coverageDelta = null;
+
+        if ($branch !== $repository->default_branch) {
+            $defaultReport = $repository->currentCoverageReports()
+                ->where('branch', $repository->default_branch)
+                ->where('status', 'completed')
+                ->latest()
+                ->orderByDesc('id')
+                ->first();
+            $defaultCoverage = $defaultReport?->files()->where('file_path', $filePath)->value('coverage_percentage');
+
+            if ($defaultCoverage !== null) {
+                $coverageDelta = (float) $file->coverage_percentage - (float) $defaultCoverage;
+            }
+        }
 
         // Fetch file contents from GitHub
         $githubService = app(GitHubServiceInterface::class);
@@ -141,11 +173,36 @@ class DashboardController extends Controller
 
         try {
             $fileContents = $githubService->fetchFileContents($repository, $report->commit_sha, $filePath);
-            $sourceLines = explode("\n", $fileContents);
+            $sourceLines = preg_split('/\r\n|\r|\n/', $fileContents);
         } catch (\Exception $e) {
             $error = 'Failed to fetch file contents from GitHub: '.$e->getMessage();
         }
 
-        return view('dashboard.file', compact('repository', 'report', 'file', 'lineCoverage', 'branch', 'sourceLines', 'error'));
+        return view('dashboard.file', compact('repository', 'report', 'file', 'lineCoverage', 'branch', 'sourceLines', 'error', 'uncoveredRanges', 'coverageDelta'));
+    }
+
+    /**
+     * @param  array<int, array{covered: bool, count: int}>  $lineCoverage
+     * @return list<array{start: int, end: int}>
+     */
+    private function uncoveredLineRanges(array $lineCoverage): array
+    {
+        $ranges = [];
+
+        foreach (collect($lineCoverage)->sortKeys() as $number => $data) {
+            if ($data['covered']) {
+                continue;
+            }
+
+            $lastIndex = array_key_last($ranges);
+
+            if ($lastIndex !== null && $ranges[$lastIndex]['end'] === $number - 1) {
+                $ranges[$lastIndex]['end'] = $number;
+            } else {
+                $ranges[] = ['start' => $number, 'end' => $number];
+            }
+        }
+
+        return $ranges;
     }
 }

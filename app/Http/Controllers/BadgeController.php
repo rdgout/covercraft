@@ -31,7 +31,7 @@ class BadgeController extends Controller
     private function generateBadge(?string $coverage): Response
     {
         $label = 'coverage';
-        $value = $coverage ?? '?';
+        $value = $coverage === null ? '?' : number_format((float) $coverage, 1).'%';
         $color = $this->getColor($coverage);
 
         $labelWidth = $this->calculateTextWidth($label);
@@ -41,24 +41,18 @@ class BadgeController extends Controller
         $valueX = $labelWidth + ($valueWidth / 2);
 
         $svg = <<<SVG
-        <svg xmlns="http://www.w3.org/2000/svg" width="{$totalWidth}" height="20">
-            <linearGradient id="b" x2="0" y2="100%">
-                <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
-                <stop offset="1" stop-opacity=".1"/>
-            </linearGradient>
-            <mask id="a">
-                <rect width="{$totalWidth}" height="20" rx="3" fill="#fff"/>
-            </mask>
-            <g mask="url(#a)">
-                <path fill="#555" d="M0 0h{$labelWidth}v20H0z"/>
+        <svg xmlns="http://www.w3.org/2000/svg" width="{$totalWidth}" height="20" viewBox="0 0 {$totalWidth} 20" role="img" aria-label="{$label}: {$value}">
+            <title>{$label}: {$value}</title>
+            <clipPath id="badge">
+                <rect width="{$totalWidth}" height="20" rx="4"/>
+            </clipPath>
+            <g clip-path="url(#badge)">
+                <path fill="#0d1c3c" d="M0 0h{$labelWidth}v20H0z"/>
                 <path fill="{$color}" d="M{$labelWidth} 0h{$valueWidth}v20H{$labelWidth}z"/>
-                <path fill="url(#b)" d="M0 0h{$totalWidth}v20H0z"/>
             </g>
-            <g fill="#fff" text-anchor="middle" font-family="DejaVu Sans,Verdana,Geneva,sans-serif" font-size="11">
-                <text x="{$labelX}" y="14" fill="#010101" fill-opacity=".3">{$label}</text>
-                <text x="{$labelX}" y="13">{$label}</text>
-                <text x="{$valueX}" y="14" fill="#010101" fill-opacity=".3">{$value}</text>
-                <text x="{$valueX}" y="13">{$value}</text>
+            <g text-anchor="middle" font-family="Figtree,Arial,sans-serif" font-size="11" font-weight="700">
+                <text x="{$labelX}" y="14" fill="#ffffff">{$label}</text>
+                <text x="{$valueX}" y="14" fill="#0d1c3c">{$value}</text>
             </g>
         </svg>
         SVG;
@@ -71,22 +65,20 @@ class BadgeController extends Controller
     private function getColor(?string $coverage): string
     {
         if ($coverage === null) {
-            return '#9f9f9f';
+            return '#eaf1f5';
         }
 
         $value = (float) $coverage;
 
         return match (true) {
-            $value >= 90 => '#4c1',
-            $value >= 80 => '#97ca00',
-            $value >= 70 => '#a4a61d',
-            $value >= 60 => '#dfb317',
-            default => '#e05d44',
+            $value >= 80 => '#72cad7',
+            $value >= 50 => '#ffc94a',
+            default => '#ff7a59',
         };
     }
 
     private function calculateTextWidth(string $text): int
     {
-        return strlen($text) * 7 + 10;
+        return strlen($text) * 6 + 14;
     }
 }

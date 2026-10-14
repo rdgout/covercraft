@@ -8,6 +8,8 @@ use App\Models\CoverageReport;
 use App\Models\Repository;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use League\Flysystem\FilesystemException;
+use League\Flysystem\UnableToWriteFile;
 
 class CoverageController extends Controller
 {
@@ -41,11 +43,23 @@ class CoverageController extends Controller
         $shortCommit = substr($validated['commit_sha'], 0, 8);
         $filename = "{$sanitizedRepo}_{$sanitizedBranch}_{$shortCommit}_{$timestamp}.xml";
 
-        $path = $request->file('clover_file')->storeAs(
-            'coverage',
-            $filename,
-            config('coverage.storage_disk'),
-        );
+        try {
+            $path = $request->file('clover_file')->storeAs(
+                'coverage',
+                $filename,
+                config('coverage.storage_disk'),
+            );
+
+            if ($path === false) {
+                throw UnableToWriteFile::atLocation('coverage/'.$filename, 'The storage disk rejected the upload.');
+            }
+        } catch (FilesystemException $exception) {
+            report($exception);
+
+            return response()->json([
+                'error' => 'Coverage file could not be stored. Please try again later.',
+            ], 500);
+        }
 
         CoverageReport::query()
             ->where('repository_id', $repository->id)

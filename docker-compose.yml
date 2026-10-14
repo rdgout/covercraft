@@ -1,4 +1,15 @@
 services:
+  storage-init:
+    image: ghcr.io/${GITHUB_REPOSITORY:-rdgout/covercraft}:latest
+    user: '0:0'
+    command: ['init-storage']
+    volumes:
+      - storage:/app/storage
+    network_mode: none
+    restart: 'no'
+    healthcheck:
+      disable: true
+
   app:
     image: ghcr.io/${GITHUB_REPOSITORY:-rdgout/covercraft}:latest
     ports:
@@ -18,6 +29,8 @@ services:
     volumes:
       - storage:/app/storage
     depends_on:
+      storage-init:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       redis:

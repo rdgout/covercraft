@@ -1,16 +1,19 @@
-@props(['value' => null])
+@props(['value' => null, 'suffix' => '%'])
 @php
+    $roundedValue = $value === null ? null : round((float) $value, 1);
     $tone = match (true) {
-        $value === null => 'none',
-        $value > 0 => 'up',
-        $value < 0 => 'down',
+        $roundedValue === null => 'none',
+        $roundedValue > 0 => 'up',
+        $roundedValue < 0 => 'down',
         default => 'flat',
     };
 @endphp
 <span {{ $attributes->class(['cc-delta', 'cc-delta--' . $tone]) }}>
     @if ($value !== null)
-        <span aria-hidden="true">{{ $value > 0 ? '↗' : ($value < 0 ? '↘' : '→') }}</span>
-        {{ $value > 0 ? '+' : '' }}{{ number_format($value, 1) }}<span class="sr-only"> percentage points</span>
+        @if ($tone !== 'flat')
+            <x-icon :name="$tone === 'up' ? 'arrow-up' : 'arrow-down'" width="14" height="14" />
+        @endif
+        {{ $roundedValue > 0 ? '+' : ($roundedValue < 0 ? '−' : '±') }}{{ number_format(abs($roundedValue), 1) }}{{ $suffix }}<span class="sr-only"> percentage points</span>
     @else
         —
     @endif

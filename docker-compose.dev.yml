@@ -1,4 +1,7 @@
 services:
+  storage-init:
+    image: covercraft:latest
+
   app:
     build:
       context: .

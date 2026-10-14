@@ -1,13 +1,19 @@
-@props(['values' => [], 'width' => 120, 'height' => 36])
+@props(['values' => [], 'width' => 96, 'height' => 28])
 @php
     $values = collect($values)->filter(fn($value) => $value !== null)->values();
     $points = [];
-    $range = max(1, $values->max() - $values->min());
+    $minimum = $values->min() ?? 0;
+    $maximum = $values->max() ?? 0;
+    if ($maximum - $minimum < 2) {
+        $minimum -= 1;
+        $maximum += 1;
+    }
+    $range = $maximum - $minimum;
     foreach ($values as $index => $value) {
         $points[] =
-            round(4 + ($index * ($width - 8)) / max(1, $values->count() - 1), 1) .
+            round(3 + ($index * ($width - 6)) / max(1, $values->count() - 1), 1) .
             ',' .
-            round($height - 4 - (($value - $values->min()) / $range) * ($height - 8), 1);
+            round(3 + (1 - ($value - $minimum) / $range) * ($height - 6), 1);
     }
     $tier = $values->last() >= 80 ? 'high' : ($values->last() >= 50 ? 'mid' : 'low');
 @endphp
@@ -27,4 +33,6 @@
             r="3"
         />
     </svg>
+@else
+    <span class="cc-delta cc-delta--none" aria-label="No coverage trend available">—</span>
 @endif

@@ -76,6 +76,39 @@ SH;
         $this->assertStringNotContainsString('migrate', file_get_contents($this->directory.'/commands'));
     }
 
+    public function test_storage_initialization_preserves_uploads_and_does_not_boot_laravel(): void
+    {
+        mkdir($this->directory.'/storage/app/private/coverage', 0755, true);
+        file_put_contents($this->directory.'/storage/app/private/coverage/report.xml', '<coverage/>');
+        file_put_contents($this->directory.'/chown', "#!/bin/sh\nprintf '%s\\n' \"\$*\" > \"\$COMMAND_LOG\"\n");
+        chmod($this->directory.'/chown', 0755);
+
+        $process = $this->runEntrypoint(['init-storage']);
+
+        $this->assertTrue($process->isSuccessful(), $process->getErrorOutput());
+        $this->assertSame('-R www-data:www-data '.$this->directory.'/storage'."\n", file_get_contents($this->directory.'/commands'));
+        $this->assertSame('<coverage/>', file_get_contents($this->directory.'/storage/app/private/coverage/report.xml'));
+        $this->assertDirectoryExists($this->directory.'/storage/app/public');
+        $this->assertDirectoryExists($this->directory.'/storage/framework/cache/data');
+        $this->assertDirectoryExists($this->directory.'/storage/framework/sessions');
+        $this->assertDirectoryExists($this->directory.'/storage/framework/views');
+        $this->assertDirectoryExists($this->directory.'/storage/logs');
+        $this->assertFileDoesNotExist($this->directory.'/key');
+        $this->assertFileDoesNotExist($this->directory.'/captured');
+    }
+
+    public function test_storage_initialization_failure_stops_startup(): void
+    {
+        file_put_contents($this->directory.'/chown', "#!/bin/sh\necho 'Permission denied' >&2\nexit 1\n");
+        chmod($this->directory.'/chown', 0755);
+
+        $process = $this->runEntrypoint(['init-storage']);
+
+        $this->assertSame(1, $process->getExitCode());
+        $this->assertStringContainsString('Permission denied', $process->getErrorOutput());
+        $this->assertFileDoesNotExist($this->directory.'/commands');
+    }
+
     /**
      * @param  list<string>  $command
      * @param  array<string, string>  $environment
@@ -86,6 +119,7 @@ SH;
             'PATH' => $this->directory.':/usr/bin:/bin',
             'APP_KEY' => '',
             'APP_KEY_FILE' => $this->directory.'/key',
+            'APP_STORAGE_PATH' => $this->directory.'/storage',
             'COMMAND_LOG' => $this->directory.'/commands',
             'KEY_CAPTURE' => $this->directory.'/captured',
         ], $environment));
