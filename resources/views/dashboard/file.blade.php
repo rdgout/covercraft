@@ -8,7 +8,7 @@
     <header class="cc-detail-head">
         <a
             class="cc-link cc-back-link"
-            href="{{ route('dashboard.branch', [$repository, $branch]) }}"
+            href="{{ route('dashboard.branch', [$repository, $branch, ...$reportQuery]) }}"
         >← {{ $branch }}</a>
         <div class="flex flex-wrap items-center justify-between gap-4">
             <div class="min-w-0 space-y-2">
@@ -16,6 +16,9 @@
                 <div class="cc-muted cc-caption flex flex-wrap items-center gap-3">
                     <x-coverage-badge :value="$file->coverage_percentage" suffix="covered" />
                     <span>{{ $file->covered_lines }} of {{ $file->total_lines }} executable lines</span>
+                    @if ($patchFile && $patchFile['status'] !== 'incomplete')
+                        <span>Changed executable lines: {{ $patchFile['covered_lines'] }} / {{ $patchFile['total_lines'] }}</span>
+                    @endif
                     @if ($coverageDelta !== null)
                         <x-coverage-delta :value="$coverageDelta" />
                         <span>vs {{ $repository->default_branch }}</span>
@@ -54,6 +57,15 @@
             >Next uncovered line ↓</button>
         </div>
     @endif
+    @if (($patchFile['uncovered_ranges'] ?? []) !== [])
+        <div class="flex flex-wrap items-center gap-2" aria-label="Uncovered changed lines">
+            <span class="cc-overline">Uncovered changed lines</span>
+            @foreach (array_slice($patchFile['uncovered_ranges'], 0, 7) as $range)
+                <a href="#L{{ $range['start'] }}" class="cc-uncovered-link">{{ $range['start'] === $range['end'] ? $range['start'] : $range['start'] . '–' . $range['end'] }}</a>
+            @endforeach
+            <button type="button" class="cc-btn cc-btn--secondary cc-btn--sm" @click="nextChanged" :disabled="!changedLines.length">Next uncovered changed line ↓</button>
+        </div>
+    @endif
     <section
         class="cc-card"
     >
@@ -77,11 +89,21 @@
                     </tr>
                 </thead>
                 <tbody>
+                    @php
+                        $changedRangeIndex = 0;
+                    @endphp
                     @for ($lineNumber = 1; $lineNumber <= $lineCount; $lineNumber++)
-                        @php($lineData = $lineCoverage[$lineNumber] ?? null)
-                        @php($sourceLine = $sourceLines[$lineNumber - 1] ?? (empty($sourceLines) ? '(Source code unavailable - showing coverage data only)' : ''))
+                        @php
+                            $lineData = $lineCoverage[$lineNumber] ?? null;
+                            $sourceLine = $sourceLines[$lineNumber - 1] ?? (empty($sourceLines) ? '(Source code unavailable - showing coverage data only)' : '');
+                            while (isset($changedLineRanges[$changedRangeIndex]) && $changedLineRanges[$changedRangeIndex]['end'] < $lineNumber) {
+                                $changedRangeIndex++;
+                            }
+                            $isChanged = isset($changedLineRanges[$changedRangeIndex]) && $changedLineRanges[$changedRangeIndex]['start'] <= $lineNumber;
+                        @endphp
                         <tr
                             id="L{{ $lineNumber }}"
+                            data-changed="{{ $isChanged ? 'true' : 'false' }}"
                             @class([
                                 'is-covered' => $lineData !== null && $lineData['covered'],
                                 'is-uncovered' => $lineData !== null && !$lineData['covered'],
@@ -91,7 +113,7 @@
                                 <a
                                     href="#L{{ $lineNumber }}"
                                     aria-label="Line {{ $lineNumber }}"
-                                >{{ $lineNumber }}</a>
+                                >{{ $lineNumber }}@if ($isChanged)<span class="sr-only"> — Changed line</span><span aria-hidden="true"> +</span>@endif</a>
                             </td>
                             <td class="cc-hits">{{ $lineData === null ? '—' : $lineData['count'] . '×' }}</td>
                             <td class="cc-code">{{ $sourceLine }}</td>

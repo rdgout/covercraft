@@ -90,14 +90,32 @@ Alpine.data('fileTree', () => ({
 Alpine.data('lineViewer', () => ({
     index: -1,
     lines: [],
+    changedLines: [],
+    changedIndex: -1,
     init() {
         this.lines = [...this.$root.querySelectorAll('tr.is-uncovered')];
+        this.changedLines = this.lines.filter((line) => line.dataset.changed === 'true');
+    },
+    nextChanged() {
+        if (!this.changedLines.length) {
+            return;
+        }
+        this.$root
+            .querySelectorAll('.cc-current-line')
+            .forEach((line) => line.classList.remove('cc-current-line'));
+        this.changedIndex = (this.changedIndex + 1) % this.changedLines.length;
+        const line = this.changedLines[this.changedIndex];
+        line.classList.add('cc-current-line');
+        line.scrollIntoView({ block: 'center' });
+        line.querySelector('a')?.focus({ preventScroll: true });
     },
     next() {
         if (!this.lines.length) {
             return;
         }
-        this.lines[this.index]?.classList.remove('cc-current-line');
+        this.$root
+            .querySelectorAll('.cc-current-line')
+            .forEach((line) => line.classList.remove('cc-current-line'));
         this.index = (this.index + 1) % this.lines.length;
         const line = this.lines[this.index];
         line.classList.add('cc-current-line');
