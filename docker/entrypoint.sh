@@ -1,11 +1,24 @@
 #!/bin/sh
 set -eu
 
-APP_KEY_FILE="${APP_KEY_FILE:-/app/storage/app/app_key}"
+APP_STORAGE_PATH="${APP_STORAGE_PATH:-/app/storage}"
+APP_KEY_FILE="${APP_KEY_FILE:-$APP_STORAGE_PATH/app/app_key}"
 
 log() {
     echo "[entrypoint] $*"
 }
+
+if [ "${1:-}" = "init-storage" ]; then
+    log "Preparing shared storage for www-data..."
+    mkdir -p "$APP_STORAGE_PATH/app/private/coverage" \
+        "$APP_STORAGE_PATH/app/public" \
+        "$APP_STORAGE_PATH/framework/cache/data" \
+        "$APP_STORAGE_PATH/framework/sessions" \
+        "$APP_STORAGE_PATH/framework/views" \
+        "$APP_STORAGE_PATH/logs"
+    chown -R www-data:www-data "$APP_STORAGE_PATH"
+    exit 0
+fi
 
 if [ -z "${APP_KEY:-}" ]; then
     if [ -f "$APP_KEY_FILE" ]; then
