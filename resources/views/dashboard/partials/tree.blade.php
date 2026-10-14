@@ -23,10 +23,14 @@
                     <span class="cc-tree-count">{{ $node['file_count'] }}
                         files</span>
                 </span>
-                <x-coverage-meter
-                    :value="$node['coverage']"
-                    class="cc-meter--sm"
-                />
+                @if ($node['coverage'] !== null)
+                    <x-coverage-meter
+                        :value="$node['coverage']"
+                        class="cc-meter--sm"
+                    />
+                @else
+                    <span class="cc-tree-na">{{ $node['covered'] ? 'N/A' : 'No data' }}</span>
+                @endif
             </summary>
             @include('dashboard.partials.tree', [
                 'tree' => $node['children'],
@@ -55,13 +59,13 @@
                     <span>{{ $name }}</span>
                 @endif
             </span>
-            @if ($node['covered'])
+            @if ($node['coverage'] !== null)
                 <x-coverage-meter
                     :value="$node['coverage']"
                     class="cc-meter--sm"
                 />
             @else
-                <span class="cc-tree-na">No data</span>
+                <span class="cc-tree-na">{{ $node['covered'] ? 'N/A' : 'No data' }}</span>
             @endif
         </div>
     @endif

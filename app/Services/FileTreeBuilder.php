@@ -32,8 +32,12 @@ class FileTreeBuilder
                     $current[$part] = [
                         'type' => 'file',
                         'path' => $filePath,
-                        'coverage' => $coverage ? (float) $coverage->coverage_percentage : 0.0,
+                        'coverage' => $coverage && $coverage->total_lines > 0
+                            ? (float) $coverage->coverage_percentage
+                            : null,
                         'covered' => $coverage !== null,
+                        'total_lines' => $coverage ? (int) $coverage->total_lines : 0,
+                        'covered_lines' => $coverage ? (int) $coverage->covered_lines : 0,
                     ];
                 } else {
                     if (! isset($current[$part])) {
@@ -86,10 +90,13 @@ class FileTreeBuilder
                 $node['children'] = $this->calculateDirectoryCoverage($node['children']);
                 $node['children'] = $this->sortTree($node['children']);
                 $stats = $this->collectDirectoryStats($node['children']);
-                $node['coverage'] = $stats['total_files'] > 0
-                    ? round($stats['total_coverage'] / $stats['total_files'], 2)
-                    : 0.0;
+                $node['coverage'] = $stats['total_lines'] > 0
+                    ? round(100 * $stats['covered_lines'] / $stats['total_lines'], 2)
+                    : null;
                 $node['file_count'] = $stats['total_files'];
+                $node['covered'] = $stats['reported_files'] > 0;
+                $node['total_lines'] = $stats['total_lines'];
+                $node['covered_lines'] = $stats['covered_lines'];
             }
         }
 
@@ -149,27 +156,35 @@ class FileTreeBuilder
 
     /**
      * @param  array<string, mixed>  $children
-     * @return array{total_files: int, total_coverage: float}
+     * @return array{total_files: int, reported_files: int, total_lines: int, covered_lines: int}
      */
     private function collectDirectoryStats(array $children): array
     {
         $totalFiles = 0;
-        $totalCoverage = 0.0;
+        $reportedFiles = 0;
+        $totalLines = 0;
+        $coveredLines = 0;
 
         foreach ($children as $node) {
             if ($node['type'] === 'file') {
                 $totalFiles++;
-                $totalCoverage += $node['coverage'];
+                $reportedFiles += $node['covered'] ? 1 : 0;
+                $totalLines += $node['total_lines'];
+                $coveredLines += $node['covered_lines'];
             } elseif ($node['type'] === 'directory') {
                 $stats = $this->collectDirectoryStats($node['children']);
                 $totalFiles += $stats['total_files'];
-                $totalCoverage += $stats['total_coverage'];
+                $reportedFiles += $stats['reported_files'];
+                $totalLines += $stats['total_lines'];
+                $coveredLines += $stats['covered_lines'];
             }
         }
 
         return [
             'total_files' => $totalFiles,
-            'total_coverage' => $totalCoverage,
+            'reported_files' => $reportedFiles,
+            'total_lines' => $totalLines,
+            'covered_lines' => $coveredLines,
         ];
     }
 }

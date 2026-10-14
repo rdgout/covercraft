@@ -23,7 +23,7 @@ class FileTreePropertyTest extends TestCase
     /**
      * Property 17: File Coverage Classification
      *
-     * Files with coverage > 0% should be "covered", files with 0% should be "uncovered".
+     * Files present in the report have coverage data, including those with 0% coverage.
      */
     public function test_property_17_file_coverage_classification(): void
     {
@@ -55,7 +55,7 @@ class FileTreePropertyTest extends TestCase
     /**
      * Property 18: Uncovered File Identification
      *
-     * Files in repo but not in coverage report should get 0% coverage.
+     * Files in the repository but not in the coverage report have unknown coverage.
      */
     public function test_property_18_uncovered_file_identification(): void
     {
@@ -82,7 +82,7 @@ class FileTreePropertyTest extends TestCase
                 $leaf = $node[end($parts)];
 
                 $this->assertFalse($leaf['covered'], "Seed: {$seed}, iteration: {$i}, file: {$file}");
-                $this->assertEquals(0.0, $leaf['coverage'], "Seed: {$seed}, iteration: {$i}, file: {$file}");
+                $this->assertNull($leaf['coverage'], "Seed: {$seed}, iteration: {$i}, file: {$file}");
             }
         }
     }
