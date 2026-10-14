@@ -20,6 +20,19 @@ class CoverageReportTest extends TestCase
         $this->assertDatabaseHas('coverage_reports', ['id' => $report->id]);
     }
 
+    public function test_diff_metadata_and_results_round_trip_independently(): void
+    {
+        $report = CoverageReport::factory()->withPatchCoverage()->create([
+            'diff_status' => 'completed',
+            'diff_metadata' => ['encoding' => 'gzip', 'file_count' => 1],
+        ])->fresh();
+
+        $this->assertSame(['encoding' => 'gzip', 'file_count' => 1], $report->diff_metadata);
+        $this->assertSame(66.67, $report->patch_coverage['percentage']);
+        $this->assertSame('completed', $report->status);
+        $this->assertNull(CoverageReport::factory()->create()->patch_coverage);
+    }
+
     public function test_pending_state(): void
     {
         $report = CoverageReport::factory()->pending()->create();
