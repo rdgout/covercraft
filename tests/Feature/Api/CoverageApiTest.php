@@ -321,4 +321,15 @@ class CoverageApiTest extends TestCase
 
         $response->assertNotFound();
     }
+
+    public function test_status_exposes_independent_diff_results(): void
+    {
+        $report = CoverageReport::factory()->for(Repository::factory()->forTeam($this->team))->withPatchCoverage()->create([
+            'diff_status' => 'failed', 'diff_error_code' => 'count_mismatch',
+        ]);
+        $this->withToken($this->apiToken)->getJson('/api/coverage/status/'.$report->id)
+            ->assertOk()->assertJsonPath('status', 'completed')->assertJsonPath('diff_status', 'failed')
+            ->assertJsonPath('patch_coverage.percentage', 66.67)
+            ->assertJsonPath('diff_error', 'The diff does not match the declared file and line counts.');
+    }
 }
