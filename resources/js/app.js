@@ -92,9 +92,25 @@ Alpine.data('lineViewer', () => ({
     lines: [],
     changedLines: [],
     changedIndex: -1,
+    navigationObserver: null,
     init() {
         this.lines = [...this.$root.querySelectorAll('tr.is-uncovered')];
         this.changedLines = this.lines.filter((line) => line.dataset.changed === 'true');
+        const navigation = this.$root.querySelector('.cc-uncovered-navigation');
+        if (navigation) {
+            const updateOffset = () => {
+                this.$root.style.setProperty(
+                    '--uncovered-navigation-height',
+                    `${navigation.getBoundingClientRect().height}px`,
+                );
+            };
+            updateOffset();
+            this.navigationObserver = new ResizeObserver(updateOffset);
+            this.navigationObserver.observe(navigation);
+        }
+    },
+    destroy() {
+        this.navigationObserver?.disconnect();
     },
     nextChanged() {
         if (!this.changedLines.length) {

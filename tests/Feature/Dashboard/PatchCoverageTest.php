@@ -65,6 +65,7 @@ class PatchCoverageTest extends TestCase
         $document = new DOMDocument;
         @$document->loadHTML($response->getContent());
         $xpath = new DOMXPath($document);
+        $this->assertCount(2, $xpath->query('//main/div[contains(@class,"cc-uncovered-navigation") and contains(@class,"sticky")]/*[@aria-label="Jump to uncovered lines" or @aria-label="Uncovered changed lines"]'));
         $this->assertCount(1, $xpath->query('//tr[@id="L2" and @data-changed="true" and contains(@class,"is-uncovered")]'));
         $this->assertCount(1, $xpath->query('//tr[@id="L1" and @data-changed="false"]'));
         $this->assertSame('    uncovered new', $xpath->query('//tr[@id="L2"]/td[contains(@class,"cc-code")]')->item(0)->textContent);

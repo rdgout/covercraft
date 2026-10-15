@@ -9,6 +9,16 @@ let lineViewerFactory;
 
 beforeAll(async () => {
     vi.stubGlobal('window', {});
+    vi.stubGlobal(
+        'ResizeObserver',
+        class {
+            constructor(callback) {
+                this.callback = callback;
+                this.observe = vi.fn();
+                this.disconnect = vi.fn();
+            }
+        },
+    );
     await import('./app');
     lineViewerFactory = alpine.data.mock.calls.find(([name]) => name === 'lineViewer')[1];
 });
@@ -29,9 +39,11 @@ function line(changed) {
     };
 }
 
-function viewer(lines) {
+function viewer(lines, navigation = null) {
     const component = lineViewerFactory();
     component.$root = {
+        style: { setProperty: vi.fn() },
+        querySelector: () => navigation,
         querySelectorAll: (selector) =>
             selector === 'tr.is-uncovered'
                 ? lines
@@ -42,6 +54,34 @@ function viewer(lines) {
 }
 
 describe('changed-line navigation', () => {
+    it('keeps jump targets below the sticky toolbar when its controls wrap', () => {
+        const navigation = { getBoundingClientRect: vi.fn(() => ({ height: 56 })) };
+        const component = viewer([line(true)], navigation);
+
+        expect(component.$root.style.setProperty).toHaveBeenLastCalledWith(
+            '--uncovered-navigation-height',
+            '56px',
+        );
+        expect(component.navigationObserver.observe).toHaveBeenCalledWith(navigation);
+
+        navigation.getBoundingClientRect.mockReturnValue({ height: 176 });
+        component.navigationObserver.callback();
+        expect(component.$root.style.setProperty).toHaveBeenLastCalledWith(
+            '--uncovered-navigation-height',
+            '176px',
+        );
+
+        component.destroy();
+        expect(component.navigationObserver.disconnect).toHaveBeenCalledOnce();
+    });
+
+    it('handles fully covered files without a toolbar or observer', () => {
+        const component = viewer([]);
+        expect(component.navigationObserver).toBeNull();
+        expect(component.$root.style.setProperty).not.toHaveBeenCalled();
+        expect(() => component.destroy()).not.toThrow();
+    });
+
     it('skips unchanged uncovered lines and wraps through changed lines', () => {
         const old = line(false);
         const first = line(true);

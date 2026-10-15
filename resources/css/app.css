@@ -184,6 +184,10 @@
         font-variant-ligatures: none;
         overflow-wrap: anywhere;
     }
+    .cc-uncovered-navigation {
+        background: var(--canvas);
+        border-bottom: 1px solid var(--border);
+    }
     .cc-uncovered-link {
         @apply inline-flex h-7 items-center rounded-full px-2.5;
         background: var(--cov-low-soft);
@@ -260,6 +264,9 @@
     }
     .cc-tree-row {
         min-height: 40px;
+    }
+    .cc-source tr {
+        scroll-margin-top: calc(var(--uncovered-navigation-height, 0px) + 16px);
     }
     .cc-source tr:target .cc-code {
         outline: 2px solid var(--focus);

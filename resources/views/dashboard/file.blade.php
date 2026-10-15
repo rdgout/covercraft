@@ -43,27 +43,31 @@
             </div>
         </div>
     @endif
-    @if ($uncoveredRanges !== [])
-        <div class="flex flex-wrap items-center gap-2" aria-label="Jump to uncovered lines">
-            <span class="cc-overline mr-1">Jump to uncovered</span>
-            @foreach (array_slice($uncoveredRanges, 0, 7) as $range)
-                <a href="#L{{ $range['start'] }}" class="cc-uncovered-link">{{ $range['start'] === $range['end'] ? $range['start'] : $range['start'] . '–' . $range['end'] }}</a>
-            @endforeach
-            <button
-                type="button"
-                class="cc-btn cc-btn--secondary cc-btn--sm ml-auto"
-                @click="next"
-                :disabled="!lines.length"
-            >Next uncovered line ↓</button>
-        </div>
-    @endif
-    @if (($patchFile['uncovered_ranges'] ?? []) !== [])
-        <div class="flex flex-wrap items-center gap-2" aria-label="Uncovered changed lines">
-            <span class="cc-overline">Uncovered changed lines</span>
-            @foreach (array_slice($patchFile['uncovered_ranges'], 0, 7) as $range)
-                <a href="#L{{ $range['start'] }}" class="cc-uncovered-link">{{ $range['start'] === $range['end'] ? $range['start'] : $range['start'] . '–' . $range['end'] }}</a>
-            @endforeach
-            <button type="button" class="cc-btn cc-btn--secondary cc-btn--sm" @click="nextChanged" :disabled="!changedLines.length">Next uncovered changed line ↓</button>
+    @if ($uncoveredRanges !== [] || ($patchFile['uncovered_ranges'] ?? []) !== [])
+        <div class="cc-uncovered-navigation sticky top-0 z-20 space-y-3 py-3">
+            @if ($uncoveredRanges !== [])
+                <div class="flex flex-wrap items-center gap-2" aria-label="Jump to uncovered lines">
+                    <span class="cc-overline mr-1">Jump to uncovered</span>
+                    @foreach (array_slice($uncoveredRanges, 0, 7) as $range)
+                        <a href="#L{{ $range['start'] }}" class="cc-uncovered-link">{{ $range['start'] === $range['end'] ? $range['start'] : $range['start'] . '–' . $range['end'] }}</a>
+                    @endforeach
+                    <button
+                        type="button"
+                        class="cc-btn cc-btn--secondary cc-btn--sm ml-auto"
+                        @click="next"
+                        :disabled="!lines.length"
+                    >Next uncovered line ↓</button>
+                </div>
+            @endif
+            @if (($patchFile['uncovered_ranges'] ?? []) !== [])
+                <div class="flex flex-wrap items-center gap-2" aria-label="Uncovered changed lines">
+                    <span class="cc-overline">Uncovered changed lines</span>
+                    @foreach (array_slice($patchFile['uncovered_ranges'], 0, 7) as $range)
+                        <a href="#L{{ $range['start'] }}" class="cc-uncovered-link">{{ $range['start'] === $range['end'] ? $range['start'] : $range['start'] . '–' . $range['end'] }}</a>
+                    @endforeach
+                    <button type="button" class="cc-btn cc-btn--secondary cc-btn--sm" @click="nextChanged" :disabled="!changedLines.length">Next uncovered changed line ↓</button>
+                </div>
+            @endif
         </div>
     @endif
     <section
