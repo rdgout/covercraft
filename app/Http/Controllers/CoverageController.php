@@ -73,6 +73,8 @@ class CoverageController extends Controller
             'commit_sha' => $validated['commit_sha'],
             'clover_file_path' => $path,
             'status' => 'pending',
+            'diff_status' => 'awaiting_upload',
+            'patch_coverage' => ['status' => 'awaiting_diff'],
         ]);
 
         ProcessCoverageJob::dispatch($report->id);
@@ -97,6 +99,9 @@ class CoverageController extends Controller
         $data = [
             'status' => $report->status,
             'report_id' => $report->id,
+            'diff_status' => $report->diff_status,
+            'diff_error' => $report->diffErrorMessage(),
+            'patch_coverage' => $report->patch_coverage,
         ];
 
         if ($report->status === 'failed') {

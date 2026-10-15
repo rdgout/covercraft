@@ -30,6 +30,20 @@ class CoverageReportFactory extends Factory
         ];
     }
 
+    public function withPatchCoverage(array $overrides = []): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'patch_coverage' => array_replace([
+                'version' => 1,
+                'status' => 'completed',
+                'covered_lines' => 2,
+                'total_lines' => 3,
+                'percentage' => 66.67,
+                'files' => [],
+            ], $overrides),
+        ]);
+    }
+
     public function pending(): static
     {
         return $this->state(fn (array $attributes) => [

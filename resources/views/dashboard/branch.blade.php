@@ -56,6 +56,7 @@
             </div>
         </section>
     @endif
+    <x-patch-coverage-summary :report="$report" />
     <div class="cc-stats">
         <x-stat-tile
             label="Lines covered"
@@ -112,7 +113,7 @@
                 </div>
                 <div class="flex gap-2">
                     <a
-                        href="{{ route('dashboard.branch', [$repository, $report->branch, 'covered_only' => 1]) }}"
+                        href="{{ route('dashboard.branch', [$repository, $report->branch, 'covered_only' => 1, ...$reportQuery]) }}"
                         @class([
                             'cc-btn cc-btn--sm',
                             'cc-btn--primary' => $showOnlyCovered,
@@ -121,7 +122,7 @@
                         @if ($showOnlyCovered) aria-current="true" @endif
                     >Covered Only</a>
                     <a
-                        href="{{ route('dashboard.branch', [$repository, $report->branch, 'covered_only' => 0]) }}"
+                        href="{{ route('dashboard.branch', [$repository, $report->branch, 'covered_only' => 0, ...$reportQuery]) }}"
                         @class([
                             'cc-btn cc-btn--sm',
                             'cc-btn--primary' => !$showOnlyCovered,
@@ -159,7 +160,7 @@
                     <div class="flex flex-col gap-2 border-t pt-3" style="border-color: var(--border)">
                         <div class="flex items-center justify-between gap-2">
                             <a
-                                href="{{ route('dashboard.file', [$repository, $report->branch, 'path' => $changed->file_path]) }}"
+                                href="{{ route('dashboard.file', [$repository, $report->branch, 'path' => $changed->file_path, ...$reportQuery]) }}"
                                 class="cc-link cc-file-path min-w-0 truncate"
                                 title="{{ $changed->file_path }}"
                             >{{ $changed->file_path }}</a>

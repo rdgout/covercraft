@@ -74,9 +74,9 @@ class PostPullRequestCommentJobTest extends TestCase
             'status' => 'completed',
         ]);
 
-        $githubAppService = $this->mock(GitHubAppService::class, function (MockInterface $mock) {
+        $githubAppService = $this->mock(GitHubAppService::class, function (MockInterface $mock) use ($report) {
             $mock->shouldReceive('isConfigured')->once()->andReturn(true);
-            $mock->shouldReceive('getOpenPullRequestForBranch')->once()->andReturn(['number' => 42]);
+            $mock->shouldReceive('getOpenPullRequestForBranch')->once()->andReturn(['number' => 42, 'head' => ['sha' => $report->commit_sha]]);
             $mock->shouldReceive('getPullRequestFiles')->once()->andReturn(['app/Foo.php']);
             $mock->shouldReceive('createPullRequestComment')->once()->andReturn(123456);
             $mock->shouldNotReceive('updatePullRequestComment');
@@ -109,9 +109,9 @@ class PostPullRequestCommentJobTest extends TestCase
             'github_comment_id' => 999,
         ]);
 
-        $githubAppService = $this->mock(GitHubAppService::class, function (MockInterface $mock) {
+        $githubAppService = $this->mock(GitHubAppService::class, function (MockInterface $mock) use ($report) {
             $mock->shouldReceive('isConfigured')->once()->andReturn(true);
-            $mock->shouldReceive('getOpenPullRequestForBranch')->once()->andReturn(['number' => 42]);
+            $mock->shouldReceive('getOpenPullRequestForBranch')->once()->andReturn(['number' => 42, 'head' => ['sha' => $report->commit_sha]]);
             $mock->shouldReceive('getPullRequestFiles')->once()->andReturn([]);
             $mock->shouldReceive('updatePullRequestComment')->once()->with(\Mockery::any(), 999, \Mockery::any());
             $mock->shouldNotReceive('createPullRequestComment');
@@ -132,9 +132,9 @@ class PostPullRequestCommentJobTest extends TestCase
             'pr_number' => null,
         ]);
 
-        $githubAppService = $this->mock(GitHubAppService::class, function (MockInterface $mock) {
+        $githubAppService = $this->mock(GitHubAppService::class, function (MockInterface $mock) use ($report) {
             $mock->shouldReceive('isConfigured')->once()->andReturn(true);
-            $mock->shouldReceive('getOpenPullRequestForBranch')->once()->andReturn(['number' => 55]);
+            $mock->shouldReceive('getOpenPullRequestForBranch')->once()->andReturn(['number' => 55, 'head' => ['sha' => $report->commit_sha]]);
             $mock->shouldReceive('getPullRequestFiles')->once()->andReturn([]);
             $mock->shouldReceive('createPullRequestComment')->once()->andReturn(111);
         });
@@ -156,9 +156,9 @@ class PostPullRequestCommentJobTest extends TestCase
             'pr_number' => 42,
         ]);
 
-        $githubAppService = $this->mock(GitHubAppService::class, function (MockInterface $mock) {
+        $githubAppService = $this->mock(GitHubAppService::class, function (MockInterface $mock) use ($report) {
             $mock->shouldReceive('isConfigured')->once()->andReturn(true);
-            $mock->shouldReceive('getOpenPullRequestForBranch')->once()->andReturn(['number' => 42]);
+            $mock->shouldReceive('getOpenPullRequestForBranch')->once()->andReturn(['number' => 42, 'head' => ['sha' => $report->commit_sha]]);
             $mock->shouldReceive('getPullRequestFiles')->once()->andReturn([]);
             $mock->shouldReceive('createPullRequestComment')->once()->andReturn(111);
         });
@@ -169,5 +169,19 @@ class PostPullRequestCommentJobTest extends TestCase
         );
 
         $this->assertEquals(42, $report->fresh()->pr_number);
+    }
+
+    public function test_stale_pr_head_does_not_publish_or_change_report_results(): void
+    {
+        $report = CoverageReport::factory()->withPatchCoverage()->create(['branch' => 'feature/x']);
+        $github = $this->mock(GitHubAppService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('isConfigured')->once()->andReturn(true);
+            $mock->shouldReceive('getOpenPullRequestForBranch')->once()->andReturn(['number' => 42, 'head' => ['sha' => str_repeat('z', 40)]]);
+            $mock->shouldNotReceive('createPullRequestComment');
+            $mock->shouldNotReceive('getPullRequestFiles');
+        });
+        (new PostPullRequestCommentJob($report->id))->handle($github, app(PullRequestCommentService::class));
+        $this->assertSame('completed', $report->fresh()->patch_coverage['status']);
+        $this->assertDatabaseCount('pull_request_comments', 0);
     }
 }
