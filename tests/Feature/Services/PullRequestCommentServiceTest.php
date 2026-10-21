@@ -138,6 +138,31 @@ class PullRequestCommentServiceTest extends TestCase
         $this->assertStringContainsString('dashboard', $body);
     }
 
+    public function test_changed_line_summary_uses_saved_branch_baseline_and_report_link(): void
+    {
+        $report = $this->makeReport('feature/x', 95.0);
+        $report->update(['patch_coverage' => [
+            'status' => 'completed', 'percentage' => 70.0, 'covered_lines' => 7, 'total_lines' => 10,
+            'base_sha' => str_repeat('a', 40), 'base_branch' => 'main', 'file_count' => 30,
+            'files' => array_fill(0, 30, ['path' => 'src/Unsafe|`File.php', 'status' => 'completed', 'percentage' => 70.0, 'covered_lines' => 7, 'total_lines' => 10]),
+        ]]);
+        $body = $this->service->buildCommentBody($report, null, []);
+        $this->assertStringContainsString('70.00% (7/10 executable lines); 3 uncovered.', $body);
+        $this->assertStringContainsString('Branch baseline: `main`', $body);
+        $this->assertStringContainsString('Showing 25 of 30', $body);
+        $this->assertSame(25, substr_count($body, 'src/Unsafe&#124;&#96;File.php'));
+        $this->assertStringContainsString('report='.$report->id, $body);
+    }
+
+    public function test_incomplete_diff_summary_never_invents_a_percentage(): void
+    {
+        $report = $this->makeReport('feature/x', 95.0);
+        $report->update(['patch_coverage' => ['status' => 'incomplete', 'percentage' => null]]);
+        $body = $this->service->buildCommentBody($report, null, []);
+        $this->assertStringContainsString('Coverage data incomplete', $body);
+        $this->assertStringNotContainsString('0.00%', $body);
+    }
+
     private function makeReport(string $branch, float $coverage): CoverageReport
     {
         $repository = Repository::factory()->create(['default_branch' => 'main']);

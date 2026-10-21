@@ -8,12 +8,21 @@ use App\Services\GitHubAppService;
 use App\Services\PullRequestCommentService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Queue\Middleware\WithoutOverlapping;
 
 class PostPullRequestCommentJob implements ShouldQueue
 {
     use Queueable;
 
     public function __construct(public int $coverageReportId) {}
+
+    public function middleware(): array
+    {
+        $report = CoverageReport::query()->find($this->coverageReportId);
+        $key = $report ? $report->repository_id.':'.$report->branch : 'missing:'.$this->coverageReportId;
+
+        return [(new WithoutOverlapping('coverage-comment:'.$key))->releaseAfter(10)->expireAfter(90)];
+    }
 
     public function handle(GitHubAppService $githubAppService, PullRequestCommentService $commentService): void
     {
@@ -23,7 +32,7 @@ class PostPullRequestCommentJob implements ShouldQueue
 
         $report = CoverageReport::with(['repository', 'files'])->find($this->coverageReportId);
 
-        if (! $report) {
+        if (! $report || $report->status !== 'completed') {
             return;
         }
 
@@ -31,10 +40,16 @@ class PostPullRequestCommentJob implements ShouldQueue
 
         $pr = $githubAppService->getOpenPullRequestForBranch($repository, $report->branch);
 
-        if (! $pr) {
+        if (! $pr || ($pr['head']['sha'] ?? null) !== $report->commit_sha) {
             return;
         }
 
+        $newest = $repository->coverageReports()->where('branch', $report->branch)
+            ->where('commit_sha', $report->commit_sha)->where('status', 'completed')
+            ->latest()->orderByDesc('id')->value('id');
+        if ($newest !== $report->id) {
+            return;
+        }
         $prNumber = $pr['number'];
 
         if (! $report->pr_number) {

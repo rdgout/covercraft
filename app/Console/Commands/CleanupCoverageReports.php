@@ -148,7 +148,7 @@ class CleanupCoverageReports extends Command
         $failedBefore = now()->subDays((int) config('coverage.retention.failed_report_days'));
 
         return $reports->filter(function (CoverageReport $report) use ($mergedBranches, $protectedIds, $failedBefore): bool {
-            if (! in_array($report->status, ['completed', 'failed'], true)) {
+            if ($report->hasPendingDiffWork() || ! in_array($report->status, ['completed', 'failed'], true)) {
                 return false;
             }
 
@@ -170,7 +170,7 @@ class CleanupCoverageReports extends Command
             return $report->getConnection()->transaction(function () use ($report, $mergedBranch): bool {
                 $freshReport = CoverageReport::query()->lockForUpdate()->find($report->id);
 
-                if (! $freshReport || ! in_array($freshReport->status, ['completed', 'failed'], true)) {
+                if (! $freshReport || $freshReport->hasPendingDiffWork() || ! in_array($freshReport->status, ['completed', 'failed'], true)) {
                     return false;
                 }
 
@@ -188,6 +188,17 @@ class CleanupCoverageReports extends Command
 
                     if ($disk->exists($freshReport->clover_file_path) && ! $disk->delete($freshReport->clover_file_path)) {
                         throw new RuntimeException('Could not delete the Clover file.');
+                    }
+                }
+
+                foreach (['diff_file_path', 'diff_index_path'] as $attribute) {
+                    $path = $freshReport->{$attribute};
+                    if ($path === null || CoverageReport::query()->where($attribute, $path)->whereKeyNot($freshReport->id)->exists()) {
+                        continue;
+                    }
+                    $disk = Storage::disk(config('coverage.storage_disk'));
+                    if ($disk->exists($path) && ! $disk->delete($path)) {
+                        throw new RuntimeException('Could not delete the diff artifact.');
                     }
                 }
 

@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Actions\QueueChangedLineCoverageAction;
 use App\Models\CoverageReport;
 use App\Services\CloverParser;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -67,6 +68,7 @@ class ProcessCoverageJob implements ShouldQueue
             }
         });
 
+        app(QueueChangedLineCoverageAction::class)->execute($report);
         PostPullRequestCommentJob::dispatch($report->id);
     }
 
@@ -79,6 +81,7 @@ class ProcessCoverageJob implements ShouldQueue
                 'status' => 'failed',
                 'error_message' => $exception->getMessage(),
             ]);
+            app(QueueChangedLineCoverageAction::class)->execute($report);
         }
     }
 }

@@ -8,6 +8,7 @@ use App\Models\CoverageReport;
 use App\Models\Repository;
 use App\Models\RepositoryFileCache;
 use App\Services\FileTreeBuilder;
+use App\Services\PatchCoverageCalculator;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -94,11 +95,8 @@ class DashboardController extends Controller
 
     public function branch(ViewRepositoryRequest $request, Repository $repository, string $branch): View
     {
-        $report = CoverageReport::current()
-            ->where('repository_id', $repository->id)
-            ->where('branch', $branch)
-            ->with('files')
-            ->firstOrFail();
+        $report = $this->reportForBranch($request, $repository, $branch)->load('files');
+        $reportQuery = $request->filled('report') ? ['report' => $report->id] : [];
 
         $defaultBranchReport = null;
         if ($branch !== $repository->default_branch) {
@@ -114,6 +112,9 @@ class DashboardController extends Controller
             ->first()
             ?->files ?? [];
 
+        if ($request->filled('report')) {
+            $repositoryFiles = [];
+        }
         $excludePatterns = config('coverage.exclude_patterns', []);
         $repositoryFiles = $this->fileTreeBuilder->applyExclusionPatterns($repositoryFiles, $excludePatterns);
 
@@ -130,7 +131,7 @@ class DashboardController extends Controller
             return $defaultFile === null || (float) $file->coverage_percentage !== (float) $defaultFile->coverage_percentage;
         });
 
-        return view('dashboard.branch', compact('repository', 'report', 'defaultBranchReport', 'fileTree', 'showOnlyCovered', 'changedFiles', 'defaultFiles'));
+        return view('dashboard.branch', compact('repository', 'report', 'defaultBranchReport', 'fileTree', 'showOnlyCovered', 'changedFiles', 'defaultFiles', 'reportQuery'));
     }
 
     public function file(ViewRepositoryRequest $request, Repository $repository, string $branch): View
@@ -139,10 +140,8 @@ class DashboardController extends Controller
 
         abort_unless($filePath, 400, 'File path is required');
 
-        $report = CoverageReport::current()
-            ->where('repository_id', $repository->id)
-            ->where('branch', $branch)
-            ->firstOrFail();
+        $report = $this->reportForBranch($request, $repository, $branch);
+        $reportQuery = $request->filled('report') ? ['report' => $report->id] : [];
 
         $file = $report->files()
             ->where('file_path', $filePath)
@@ -178,7 +177,27 @@ class DashboardController extends Controller
             $error = 'Failed to fetch file contents from GitHub: '.$e->getMessage();
         }
 
-        return view('dashboard.file', compact('repository', 'report', 'file', 'lineCoverage', 'branch', 'sourceLines', 'error', 'uncoveredRanges', 'coverageDelta'));
+        $patchFile = null;
+        try {
+            $patchFile = app(PatchCoverageCalculator::class)->fileCoverage($report, $file);
+        } catch (\Throwable $exception) {
+            report($exception);
+        }
+        $changedLineRanges = $patchFile['added_ranges'] ?? [];
+
+        return view('dashboard.file', compact('repository', 'report', 'file', 'lineCoverage', 'branch', 'sourceLines', 'error', 'uncoveredRanges', 'coverageDelta', 'reportQuery', 'patchFile', 'changedLineRanges'));
+    }
+
+    protected function reportForBranch(ViewRepositoryRequest $request, Repository $repository, string $branch): CoverageReport
+    {
+        $reports = $repository->coverageReports()->where('branch', $branch);
+        if ($request->filled('report')) {
+            $reports->whereKey($request->integer('report'));
+        } else {
+            $reports->current();
+        }
+
+        return $reports->firstOrFail();
     }
 
     /**

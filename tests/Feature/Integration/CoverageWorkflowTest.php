@@ -2,6 +2,9 @@
 
 namespace Tests\Feature\Integration;
 
+use App\Actions\QueueChangedLineCoverageAction;
+use App\Jobs\CalculateChangedLineCoverageJob;
+use App\Jobs\ProcessCoverageDiffJob;
 use App\Jobs\ProcessCoverageJob;
 use App\Models\CoverageFile;
 use App\Models\CoverageReport;
@@ -11,6 +14,8 @@ use App\Models\Team;
 use App\Models\TeamAccessToken;
 use App\Models\User;
 use App\Services\CloverParser;
+use App\Services\PatchCoverageCalculator;
+use App\Services\UnifiedDiffParser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Queue;
@@ -267,5 +272,57 @@ XML;
         $response = $this->get("/dashboard/{$repository->id}/feature/improve");
         $response->assertOk();
         $response->assertSee('+25');
+    }
+
+    public function test_extra_diff_upload_calculates_without_pr_in_either_processing_order(): void
+    {
+        Queue::fake();
+        $repository = Repository::factory()->forTeam($this->team)->create(['owner' => 'acme', 'name' => 'app']);
+        $xml = '<?xml version="1.0"?><coverage><project><file name="src/Foo.php"><line num="1" type="stmt" count="1"/><line num="2" type="stmt" count="0"/><line num="3" type="stmt" count="1"/></file></project></coverage>';
+        $diff = "diff --git a/src/Foo.php b/src/Foo.php\n--- a/src/Foo.php\n+++ b/src/Foo.php\n@@ -0,0 +1,3 @@\n+first\n+second\n+third\n";
+        foreach ([true, false] as $diffFirst) {
+            $sha = str_repeat($diffFirst ? 'a' : 'b', 40);
+            $id = $this->withToken($this->apiToken)->postJson('/api/coverage', [
+                'repository' => 'acme/app', 'branch' => 'feature/offline', 'commit_sha' => $sha,
+                'clover_file' => UploadedFile::fake()->createWithContent('clover.xml', $xml),
+            ])->assertAccepted()->json('report_id');
+            $report = CoverageReport::query()->findOrFail($id);
+            RepositoryFileCache::query()->updateOrCreate(['repository_id' => $repository->id, 'branch' => $report->branch], ['commit_sha' => $sha, 'files' => ['src/Foo.php'], 'cached_at' => now()]);
+            $this->withToken($this->apiToken)->postJson('/api/coverage/'.$id.'/diff', [
+                'diff_file' => UploadedFile::fake()->createWithContent('changes.diff.gz', gzencode($diff)),
+                'base_commit_sha' => str_repeat('c', 40), 'head_commit_sha' => $sha,
+                'sha256' => hash('sha256', gzencode($diff)), 'file_count' => 1, 'added_lines' => 3, 'deleted_lines' => 0,
+                'base_branch' => 'main', 'comparison_type' => 'merge_base',
+            ])->assertAccepted();
+            $parseDiff = fn () => (new ProcessCoverageDiffJob($id, $report->fresh()->diff_sha256))->handle(new UnifiedDiffParser, new QueueChangedLineCoverageAction);
+            $parseClover = fn () => (new ProcessCoverageJob($id))->handle(new CloverParser);
+            if ($diffFirst) {
+                $parseDiff();
+                $parseClover();
+            } else {
+                $parseClover();
+                $parseDiff();
+            }
+            (new CalculateChangedLineCoverageJob($id))->handle(new PatchCoverageCalculator, new QueueChangedLineCoverageAction);
+            $this->withToken($this->apiToken)->getJson('/api/coverage/status/'.$id)->assertOk()
+                ->assertJsonPath('status', 'completed')->assertJsonPath('diff_status', 'completed')
+                ->assertJsonPath('patch_coverage.percentage', 66.67)->assertJsonPath('patch_coverage.head_sha', $sha);
+            $this->get(route('dashboard.branch', [$repository, $report->branch, 'report' => $id]))->assertOk()->assertSee('2 of 3 measured changed executable lines covered');
+            $this->assertDatabaseCount('pull_request_comments', 0);
+        }
+    }
+
+    public function test_invalid_diff_keeps_clover_report_usable(): void
+    {
+        Queue::fake();
+        $content = 'not a git diff';
+        Storage::disk('local')->put('coverage/invalid.diff', $content);
+        $report = CoverageReport::factory()->create([
+            'diff_status' => 'queued', 'diff_file_path' => 'coverage/invalid.diff', 'diff_sha256' => hash('sha256', $content),
+            'diff_metadata' => ['encoding' => 'plain', 'file_count' => 0, 'added_lines' => 0, 'deleted_lines' => 0],
+        ]);
+        (new ProcessCoverageDiffJob($report->id, $report->diff_sha256))->handle(new UnifiedDiffParser, new QueueChangedLineCoverageAction);
+        $this->assertSame('completed', $report->fresh()->status);
+        $this->assertSame('unavailable', $report->fresh()->patch_coverage['status']);
     }
 }

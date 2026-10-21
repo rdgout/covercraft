@@ -91,6 +91,7 @@ class DesignConsistencyTest extends TestCase
         ]);
         $xpath = $this->xpath($response);
         $this->assertSame('app/Services/File Name.php', $xpath->query('//h1')->item(0)->textContent);
+        $this->assertCount(1, $xpath->query('//main/div[contains(@class, "sticky") and contains(@class, "top-0") and contains(@class, "z-20")]/*[@aria-label="Jump to uncovered lines"]'));
         $jumps = $xpath->query('//*[@aria-label="Jump to uncovered lines"]//a');
         $this->assertCount(3, $jumps);
 

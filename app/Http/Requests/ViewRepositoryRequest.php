@@ -27,7 +27,12 @@ class ViewRepositoryRequest extends FormRequest
     public function rules(): array
     {
         return [
-            //
+            'report' => ['nullable', 'integer', 'min:1'],
         ];
+    }
+
+    public function messages(): array
+    {
+        return ['report.integer' => 'Choose a valid coverage report.', 'report.min' => 'Choose a valid coverage report.'];
     }
 }

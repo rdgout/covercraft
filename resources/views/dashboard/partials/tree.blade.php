@@ -53,7 +53,7 @@
                 @if ($node['covered'])
                     <a
                         class="truncate"
-                        href="{{ route('dashboard.file', [$repository, $report->branch, 'path' => $node['path']]) }}"
+                        href="{{ route('dashboard.file', [$repository, $report->branch, 'path' => $node['path'], ...($reportQuery ?? [])]) }}"
                     >{{ $name }}</a>
                 @else
                     <span>{{ $name }}</span>
